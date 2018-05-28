@@ -80,6 +80,14 @@ namespace Mynt.Data.LiteDB
         {
         }
 
+        public async Task<List<Trade>> GetClosedTradesAsync()
+        {
+            var trades = ordersAdapter.Find(x => !x.IsOpen).ToList();
+            var items = Mapping.Mapper.Map<List<Trade>>(trades);
+
+            return items;
+        }
+
         public async Task<List<Trade>> GetActiveTradesAsync()
         {
             var trades = ordersAdapter.Find(x => x.IsOpen).ToList();

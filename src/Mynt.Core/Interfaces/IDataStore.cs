@@ -16,6 +16,7 @@ namespace Mynt.Core.Interfaces
         Task<List<Trade>> GetActiveTradesAsync();
         Task SaveTradesAsync(List<Trade> trades);
         Task SaveTradeAsync(Trade trade);
+        Task<List<Trade>> GetClosedTradesAsync();
 
         // Trader related methods
         Task<List<Trader>> GetTradersAsync();

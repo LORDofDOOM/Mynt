@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Mynt.Core.Models;
 
 namespace Mynt.Data.LiteDB
 {
@@ -34,5 +35,10 @@ namespace Mynt.Data.LiteDB
         public string StrategyUsed { get; set; }
         public double? StopLossRate { get; set; }
         public SellType SellType { get; set; }
+
+        // Used for MyntUI output
+        public decimal? OpenProfit { get; set; }
+        public decimal? OpenProfitPercentage { get; set; }
+        public Ticker TickerLast { get; set; }
     }
 }
