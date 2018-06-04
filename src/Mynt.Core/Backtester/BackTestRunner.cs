@@ -11,7 +11,7 @@ namespace Mynt.Core.Backtester
 {
     public class BackTestRunner
     {
-        public async Task<List<BackTestResult>> RunSingleStrategy(ITradingStrategy strategy, BacktestOptions backtestOptions, IDataStore dataStore)
+        public async Task<List<BackTestResult>> RunSingleStrategy(ITradingStrategy strategy, BacktestOptions backtestOptions, IDataStoreBacktest dataStore)
         {
             var results = new List<BackTestResult>();
 

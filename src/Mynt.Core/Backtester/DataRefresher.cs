@@ -14,7 +14,7 @@ namespace Mynt.Core.Backtester
     {
         public static Dictionary<string, BacktestOptions> CurrentlyRunningUpdates = new Dictionary<string, BacktestOptions>();
 
-        public static async Task<bool> CheckForCandleData(BacktestOptions backtestOptions, IDataStore dataStore)
+        public static async Task<bool> CheckForCandleData(BacktestOptions backtestOptions, IDataStoreBacktest dataStore)
         {
             List<string> allDatabases = await dataStore.GetBacktestAllDatabases(backtestOptions);
             if (allDatabases.Count == 0)
@@ -24,7 +24,7 @@ namespace Mynt.Core.Backtester
             return true;
         }
 
-        public static async Task RefreshCandleData(Action<string> callback, BacktestOptions backtestOptions, IDataStore dataStore)
+        public static async Task RefreshCandleData(Action<string> callback, BacktestOptions backtestOptions, IDataStoreBacktest dataStore)
         {
             BaseExchange baseExchangeApi = new BaseExchangeInstance().BaseExchange(backtestOptions.Exchange.ToString());
 
@@ -114,7 +114,7 @@ namespace Mynt.Core.Backtester
             }
         }
 
-        public static async Task<JArray> GetCacheAge(BacktestOptions backtestOptions, IDataStore dataStore)
+        public static async Task<JArray> GetCacheAge(BacktestOptions backtestOptions, IDataStoreBacktest dataStore)
         {
             JArray jArrayResult = new JArray();
 
@@ -138,7 +138,7 @@ namespace Mynt.Core.Backtester
             return jArrayResult;
         }
 
-        public static void GetCacheAgeConsole(BacktestOptions backtestOptions, IDataStore dataStore)
+        public static void GetCacheAgeConsole(BacktestOptions backtestOptions, IDataStoreBacktest dataStore)
         {
             Console.WriteLine("\tBacktest StartDate: " + Convert.ToDateTime(backtestOptions.StartDate).ToUniversalTime() + " UTC");
             if (backtestOptions.EndDate != DateTime.MinValue)
