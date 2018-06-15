@@ -1,6 +1,7 @@
 ﻿using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using System;
+using Mynt.Core.Models;
 
 namespace Mynt.Data.MongoDB
 {
@@ -16,5 +17,9 @@ namespace Mynt.Data.MongoDB
         public DateTime LastUpdated { get; set; }
         public bool IsBusy { get; set; }
         public bool IsArchived { get; set; }
+
+        // Used for MyntUI output
+        public Trade ActiveTrade { get; set; }
+        public decimal ProfitLoss { get; set; }
     }
 }
