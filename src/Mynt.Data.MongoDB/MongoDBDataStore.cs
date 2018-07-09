@@ -26,6 +26,14 @@ namespace Mynt.Data.MongoDB
         {
         }
 
+        public async Task<List<Trade>> GetClosedTradesAsync()
+        {
+            var trades = await ordersAdapter.Find(x => x.IsOpen).ToListAsync();
+            var items = Mapping.Mapper.Map<List<Trade>>(trades);
+
+            return items;
+        }
+
         public async Task<List<Trade>> GetActiveTradesAsync()
         {
             var trades = await ordersAdapter.Find(x => x.IsOpen).ToListAsync();
