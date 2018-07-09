@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Mynt.Core.Enums;
 using Mynt.Core.Strategies;
 
@@ -13,6 +13,9 @@ namespace Mynt.Core.TradeManagers
     public class TradeOptions
     {
         decimal stopLossPercentage = -0.07m;
+
+        // Trading mode default is PaperTradeManager
+        public bool PaperTrade { get; set; } = true;
 
         // Trader settings
         public int MaxNumberOfConcurrentTrades { get; set; } = 10;

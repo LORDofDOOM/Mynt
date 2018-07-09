@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -12,7 +12,7 @@ namespace Mynt.Core.TradeManagers
 	public class PaperTradeManager : ITradeManager
 	{
 		private readonly IExchangeApi _api;
-		private readonly INotificationManager _notification;
+		private readonly List<INotificationManager>  _notification;
 		private readonly ITradingStrategy _strategy;
 		private readonly ILogger _logger;
 		private List<Trade> _activeTrades;
@@ -20,8 +20,9 @@ namespace Mynt.Core.TradeManagers
 		private readonly IDataStore _dataStore;
 		private readonly OrderBehavior _orderBehavior;
 		private readonly TradeOptions _settings;
+	    private readonly DateTime _currentRunTime;
 
-		public PaperTradeManager(IExchangeApi api, ITradingStrategy strategy, INotificationManager notificationManager, ILogger logger, TradeOptions settings, IDataStore dataStore, OrderBehavior orderBehavior = OrderBehavior.AlwaysFill)
+        public PaperTradeManager(IExchangeApi api, ITradingStrategy strategy, List<INotificationManager> notificationManager, ILogger logger, TradeOptions settings, IDataStore dataStore, OrderBehavior orderBehavior = OrderBehavior.AlwaysFill)
 		{
 			_api = api;
 			_strategy = strategy;
@@ -31,16 +32,16 @@ namespace Mynt.Core.TradeManagers
 			_orderBehavior = orderBehavior;
 			_settings = settings;
 
-			if (_api == null) throw new ArgumentException("Invalid exchange provided...");
+            if (_api == null) throw new ArgumentException("Invalid exchange provided...");
 			if (_strategy == null) throw new ArgumentException("Invalid strategy provided...");
 			if (_dataStore == null) throw new ArgumentException("Invalid data store provided...");
 			if (_settings == null) throw new ArgumentException("Invalid settings provided...");
 			if (_logger == null) throw new ArgumentException("Invalid logger provided...");
 		}
+        
+        #region SETUP
 
-		#region SETUP
-
-		private async Task Initialize(bool initTraders = false)
+    private async Task Initialize(bool initTraders = false)
 		{
 			// First initialize a few things
 			await _dataStore.InitializeAsync();
@@ -295,12 +296,12 @@ namespace Mynt.Core.TradeManagers
 			{
 				_logger.LogInformation("Checking market {Market}...", market);
 
-				var minimumDate = _strategy.GetMinimumDateTime();
-				var candleDate = _strategy.GetCurrentCandleDateTime();
-				var candles = await _api.GetTickerHistory(market, _strategy.IdealPeriod, minimumDate);
+			    var minimumDate = _strategy.GetMinimumDateTime();
+			    var candleDate = _strategy.GetCurrentCandleDateTime();
+			    var candles = await _api.GetTickerHistory(market, _strategy.IdealPeriod, minimumDate);
 
-				// We eliminate all candles that aren't needed for the dataset incl. the last one (if it's the current running candle).
-				candles = candles.Where(x => x.Timestamp >= minimumDate && x.Timestamp < candleDate).ToList();
+                // We eliminate all candles that aren't needed for the dataset incl. the last one (if it's the current running candle).
+                candles = candles.Where(x => x.Timestamp >= minimumDate && x.Timestamp < candleDate).ToList();
 
 				// Not enough candles to perform what we need to do.
 				if (candles.Count < _strategy.MinimumAmountOfCandles)
@@ -316,15 +317,15 @@ namespace Mynt.Core.TradeManagers
 				// Get the date for the last candle.
 				var signalDate = candles[candles.Count - 1].Timestamp;
 
-				// This is an outdated candle...
-				if (signalDate < _strategy.GetSignalDate())
-				{
-					_logger.LogInformation("Outdated candle for {Market}...", market);
-					return null;
-				}
+                // This is an outdated candle...
+			    if (signalDate < _strategy.GetSignalDate())
+			    {
+			        _logger.LogInformation("Outdated candle for {Market}...", market);
+			        return null;
+			    }
 
-				// This calculates an advice for the next timestamp.
-				var advice = _strategy.Forecast(candles);
+                // This calculates an advice for the next timestamp.
+                var advice = _strategy.Forecast(candles);
 
 				return new TradeSignal
 				{
@@ -466,8 +467,8 @@ namespace Mynt.Core.TradeManagers
 			// Get our current trades.
 			await Initialize();
 
-			// First we update our open buy orders by checking if they're filled.
-			await UpdateOpenBuyOrders();
+            // First we update our open buy orders by checking if they're filled.
+            await UpdateOpenBuyOrders();
 
 			// Secondly we check if currently selling trades can be marked as sold if they're filled.
 			await UpdateOpenSellOrders();
@@ -693,7 +694,10 @@ namespace Mynt.Core.TradeManagers
 		{
 			if (_notification != null)
 			{
-				await _notification.SendNotification(message);
+			    foreach (var notificationManager in _notification)
+			    {
+			        await notificationManager.SendNotification(message);
+                }
 			}
 		}
 	}

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Mynt.Core.Enums;
 
 namespace Mynt.Core.Models
@@ -34,6 +34,8 @@ namespace Mynt.Core.Models
         public string StrategyUsed { get; set; }
         public decimal? StopLossRate { get; set; }
         public SellType SellType { get; set; }
+
+        public bool PaperTrading { get; set; }
 
         public Trade()
         {

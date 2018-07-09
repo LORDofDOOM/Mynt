@@ -1,4 +1,4 @@
-﻿using Mynt.Core.Enums;
+using Mynt.Core.Enums;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -36,9 +36,6 @@ namespace Mynt.Data.LiteDB
         public double? StopLossRate { get; set; }
         public SellType SellType { get; set; }
 
-        // Used for MyntUI output
-        public decimal? OpenProfit { get; set; }
-        public decimal? OpenProfitPercentage { get; set; }
-        public Ticker TickerLast { get; set; }
+        public bool PaperTrading { get; set; }
     }
 }

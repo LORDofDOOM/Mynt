@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Mynt.Core.Enums;
 using Mynt.Core.Models;
@@ -7,7 +7,7 @@ namespace Mynt.Core.Interfaces
 {
     public interface ITradingStrategy
     {
-        string Name { get;  }
+        string Name { get; }
 
         int MinimumAmountOfCandles { get; }
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -214,9 +214,9 @@ namespace Mynt.Core.Exchanges
 			var orderbook = await _api.GetOrderBookAsync(market);
 			var orderbookFixed = new OrderBook
 			{
-				Asks = orderbook.Asks.Select(x => new OrderBookEntry { Price = x.Price, Quantity = x.Amount }).ToList(),
-				Bids = orderbook.Bids.Select(x => new OrderBookEntry { Price = x.Price, Quantity = x.Amount }).ToList()
-			};
+              Asks = orderbook.Asks.Select(x => new OrderBookEntry { Price = x.Value.Price, Quantity = x.Value.Amount }).ToList(),
+              Bids = orderbook.Bids.Select(x => new OrderBookEntry { Price = x.Value.Price, Quantity = x.Value.Amount }).ToList()
+            };
 
 			return orderbookFixed;
 		}

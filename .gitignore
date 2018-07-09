@@ -289,3 +289,4 @@ __pycache__/
 
 .DS_Store
 /src/Mynt.AspNetCore.Host/appsettings.overrides.json
+/src/Mynt.Core/Exchanges/ExchangeWebsockets.cs
