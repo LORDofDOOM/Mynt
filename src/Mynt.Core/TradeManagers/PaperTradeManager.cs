@@ -263,8 +263,27 @@ namespace Mynt.Core.TradeManagers
 			foreach (var market in _settings.MarketBlackList)
 				markets.RemoveAll(x => x.CurrencyPair.BaseCurrency == market);
 
-			// Prioritize markets with high volume.
-			foreach (var market in markets.Distinct().OrderByDescending(x => x.Volume).ToList())
+
+            // Buy from external - Currently for Debug -> This will buy on each tick !
+            var externalTicker = await _api.GetTicker("LINKBTC");
+            Candle externalCandle = new Candle();
+            externalCandle.Timestamp = DateTime.UtcNow;
+            externalCandle.Open = externalTicker.Last;
+            externalCandle.High = externalTicker.Last;
+            externalCandle.Volume = externalTicker.Volume;
+            externalCandle.Close = externalTicker.Last;
+
+            pairs.Add(new TradeSignal
+            {
+                MarketName = "LINKBTC",
+                QuoteCurrency = "LINK",
+                BaseCurrency = "BTC",
+                TradeAdvice = TradeAdvice.StrongBuy,
+                SignalCandle = externalCandle
+            });
+
+            // Prioritize markets with high volume.
+            foreach (var market in markets.Distinct().OrderByDescending(x => x.Volume).ToList())
 			{
 				var signal = await GetStrategySignal(market.MarketName);
 
@@ -630,6 +649,28 @@ namespace Mynt.Core.TradeManagers
             tradeToUpdate.TickerLast = ticker;
             await _dataStore.SaveTradeAsync(tradeToUpdate);
             await SendNotification($"Update LastPrice for Trade {trade.TradeId}");
+
+            // Sell if we setup instant sell
+            if (trade.SellNow)
+            {
+                await SendNotification($"Sell now is set: Selling with {(trade.SellOnPercentage / 100)} for {trade.TradeId}");
+                return SellType.Immediate;
+            }
+
+            // Hold
+            if (trade.HoldPosition)
+            {
+                await SendNotification($"Hold is set: Ignore {trade.TradeId}");
+                return SellType.None;
+            }
+
+            // Sell if defined percentage is reached
+            await SendNotification($"Try to sell:  {trade.TradeId} - {currentProfit * 100} {trade.SellOnPercentage}");
+            if ((currentProfit*100) >= trade.SellOnPercentage)
+            {
+                await SendNotification($"We've reached defined percentage ({(trade.SellOnPercentage)})for {trade.TradeId} - Selling now");
+                return SellType.Timed;
+            }
 
             // Let's not do a stoploss for now...
             if (currentProfit < _settings.StopLossPercentage)
