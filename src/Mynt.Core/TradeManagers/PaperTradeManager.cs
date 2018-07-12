@@ -265,8 +265,27 @@ namespace Mynt.Core.TradeManagers
 			foreach (var market in _settings.MarketBlackList)
 				markets.RemoveAll(x => x.CurrencyPair.BaseCurrency == market);
 
-			// Prioritize markets with high volume.
-			foreach (var market in markets.Distinct().OrderByDescending(x => x.Volume).ToList())
+
+            // Buy from external - Currently for Debug -> This will buy on each tick !
+            var externalTicker = await _api.GetTicker("LINKBTC");
+            Candle externalCandle = new Candle();
+            externalCandle.Timestamp = DateTime.UtcNow;
+            externalCandle.Open = externalTicker.Last;
+            externalCandle.High = externalTicker.Last;
+            externalCandle.Volume = externalTicker.Volume;
+            externalCandle.Close = externalTicker.Last;
+
+            pairs.Add(new TradeSignal
+            {
+                MarketName = "LINKBTC",
+                QuoteCurrency = "LINK",
+                BaseCurrency = "BTC",
+                TradeAdvice = TradeAdvice.StrongBuy,
+                SignalCandle = externalCandle
+            });
+
+            // Prioritize markets with high volume.
+            foreach (var market in markets.Distinct().OrderByDescending(x => x.Volume).ToList())
 			{
 				var signal = await GetStrategySignal(market.MarketName);
 
@@ -454,21 +473,21 @@ namespace Mynt.Core.TradeManagers
 
 			await SendNotification($"Buying #{pair} with limit {openRate:0.00000000} BTC ({amount:0.0000} units).");
 
-			var trade = new Trade()
-			{
-				TraderId = freeTrader.Identifier,
-				Market = pair,
-				StakeAmount = btcToSpend,
-				OpenRate = openRate,
-				OpenDate = DateTime.UtcNow,
-				Quantity = amount,
-				OpenOrderId = orderId,
-				BuyOrderId = orderId,
-				IsOpen = true,
-				IsBuying = true,
-				StrategyUsed = _strategy.Name,
-				SellType = SellType.None,
-			};
+            var trade = new Trade()
+            {
+                TraderId = freeTrader.Identifier,
+                Market = pair,
+                StakeAmount = btcToSpend,
+                OpenRate = openRate,
+                OpenDate = DateTime.UtcNow,
+                Quantity = amount,
+                OpenOrderId = orderId,
+                BuyOrderId = orderId,
+                IsOpen = true,
+                IsBuying = true,
+                StrategyUsed = _strategy.Name,
+                SellType = SellType.None
+            };
 
 			if (_settings.PlaceFirstStopAtSignalCandleLow)
 			{
@@ -607,8 +626,8 @@ namespace Mynt.Core.TradeManagers
 			foreach (var trade in _activeTrades.Where(x => !x.IsSelling && !x.IsBuying && x.IsOpen))
 			{
 				// These are trades that are not being bought or sold at the moment so these need to be checked for sell conditions.
-				var ticker = await _api.GetTicker(trade.Market);
-				var sellType = ShouldSell(trade, ticker.Bid, DateTime.UtcNow);
+				var ticker = _api.GetTicker(trade.Market).Result;
+				var sellType = await ShouldSell(trade, ticker, DateTime.UtcNow);
 
 				_logger.LogInformation("Checking {Market} sell conditions...", trade.Market);
 
@@ -641,23 +660,50 @@ namespace Mynt.Core.TradeManagers
 		/// <param name="currentRateBid"></param>
 		/// <param name="utcNow"></param>
 		/// <returns>True if bot should sell at current rate.</returns>
-		private SellType ShouldSell(Trade trade, decimal currentRateBid, DateTime utcNow)
+		private async Task<SellType> ShouldSell(Trade trade, Ticker ticker, DateTime utcNow)
 		{
-			var currentProfit = (currentRateBid - trade.OpenRate) / trade.OpenRate;
+			var currentProfit = (ticker.Bid - trade.OpenRate) / trade.OpenRate;
 
 			_logger.LogInformation("Should sell {Market}? Profit: {Profit}%...", trade.Market, (currentProfit * 100).ToString("0.00"));
 
-			// Let's not do a stoploss for now...
-			if (currentProfit < _settings.StopLossPercentage)
+            var tradeToUpdate = _activeTrades.Where(x => x.TradeId == trade.TradeId).FirstOrDefault();
+            tradeToUpdate.TickerLast = ticker;
+            await _dataStore.SaveTradeAsync(tradeToUpdate);
+            await SendNotification($"Update LastPrice for Trade {trade.TradeId}");
+
+            // Sell if we setup instant sell
+            if (trade.SellNow)
+            {
+                await SendNotification($"Sell now is set: Selling with {(trade.SellOnPercentage / 100)} for {trade.TradeId}");
+                return SellType.Immediate;
+            }
+
+            // Hold
+            if (trade.HoldPosition)
+            {
+                await SendNotification($"Hold is set: Ignore {trade.TradeId}");
+                return SellType.None;
+            }
+
+            // Sell if defined percentage is reached
+            await SendNotification($"Try to sell:  {trade.TradeId} - {currentProfit * 100} {trade.SellOnPercentage}");
+            if ((currentProfit*100) >= trade.SellOnPercentage)
+            {
+                await SendNotification($"We've reached defined percentage ({(trade.SellOnPercentage)})for {trade.TradeId} - Selling now");
+                return SellType.Timed;
+            }
+
+            // Let's not do a stoploss for now...
+            if (currentProfit < _settings.StopLossPercentage)
 			{
 				_logger.LogInformation("Stop loss hit: {StopLoss}%", _settings.StopLossPercentage);
 				return SellType.StopLoss;
 			}
 
-			// Only use ROI when no stoploss is set, because the stop loss
-			// will be the anchor that sells when the trade falls below it.
-			// This gives the trade room to rise further instead of selling directly.
-			if (!trade.StopLossRate.HasValue)
+            // Only use ROI when no stoploss is set, because the stop loss
+            // will be the anchor that sells when the trade falls below it.
+            // This gives the trade room to rise further instead of selling directly.
+            if (!trade.StopLossRate.HasValue)
 			{
 				// Check if time matches and current rate is above threshold
 				foreach (var item in _settings.ReturnOnInvestment)
@@ -676,7 +722,7 @@ namespace Mynt.Core.TradeManagers
 			if (_settings.EnableTrailingStop)
 			{
 				// If the current rate is below our current stoploss percentage, close the trade.
-				if (trade.StopLossRate.HasValue && currentRateBid < trade.StopLossRate.Value)
+				if (trade.StopLossRate.HasValue && ticker.Bid < trade.StopLossRate.Value)
 					return SellType.TrailingStopLoss;
 
 				// The new stop would be at a specific percentage above our starting point.

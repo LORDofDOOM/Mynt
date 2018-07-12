@@ -37,5 +37,11 @@ namespace Mynt.Data.LiteDB
         public SellType SellType { get; set; }
 
         public bool PaperTrading { get; set; }
+        public Ticker TickerLast { get; set; }
+
+        //Add Options for this trade
+        public decimal SellOnPercentage { get; set; }
+        public bool HoldPosition { get; set; }
+        public bool SellNow { get; set; }
     }
 }
