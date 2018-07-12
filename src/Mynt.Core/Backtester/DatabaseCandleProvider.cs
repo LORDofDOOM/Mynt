@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Mynt.Core.Interfaces;
@@ -20,6 +20,18 @@ namespace Mynt.Core.Backtester
             List<Candle> candles = await dataStore.GetBacktestCandlesBetweenTime(backtestOptions);
 
             return candles;
+        }
+
+        public async Task SaveTradeSignals(BacktestOptions backtestOptions, IDataStoreBacktest dataStore, List<TradeSignal> signals)
+        {
+            backtestOptions.EndDate = DateTime.UtcNow;
+
+            if (backtestOptions.EndDate != DateTime.MinValue)
+            {
+                backtestOptions.EndDate = backtestOptions.EndDate;
+            }
+
+            await dataStore.SaveBacktestTradeSignalsBulk(signals, backtestOptions);
         }
     }
 }

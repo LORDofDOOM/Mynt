@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -150,5 +150,21 @@ namespace Mynt.Data.LiteDB
             }
         }
 
+        public async Task SaveBacktestTradeSignalsBulk(List<TradeSignal> signals, BacktestOptions backtestOptions)
+        {
+            var items = Mapping.Mapper.Map<List<TradeSignalAdapter>>(signals);
+
+            LiteCollection<TradeSignalAdapter> itemCollection = DataStoreBacktest.GetInstance(GetDatabase(backtestOptions)).GetTable<TradeSignalAdapter>("Signals_" + backtestOptions.CandlePeriod);
+
+            foreach (var item in items)
+            {
+                itemCollection.Delete(i => i.StrategyName == item.StrategyName);
+            }
+
+           // TradeSignalAdapter lastCandle = itemCollection.Find(Query.All("Timestamp", Query.Descending), limit: 1).FirstOrDefault();
+
+            itemCollection.EnsureIndex("Timestamp");
+            itemCollection.InsertBulk(items);
+        }
     }
 }

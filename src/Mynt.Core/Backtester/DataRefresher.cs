@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -83,7 +83,9 @@ namespace Mynt.Core.Backtester
                 {
                     try
                     {
-                        List<Candle> candles = await baseExchangeApi.GetTickerHistory(exchangeSymbol, backtestOptions.CandlePeriod.FromMinutesEquivalent(), startDate, endDate.RoundDown(TimeSpan.FromMinutes(backtestOptions.CandlePeriod)));
+                        List<Candle> candles = await baseExchangeApi.GetChunkTickerHistory(exchangeSymbol, backtestOptions.CandlePeriod.FromMinutesEquivalent(), startDate, endDate.RoundDown(TimeSpan.FromMinutes(backtestOptions.CandlePeriod)));
+                        //List<Candle> candles = await baseExchangeApi.(exchangeSymbol, backtestOptions.CandlePeriod.FromMinutesEquivalent(), startDate, endDate.RoundDown(TimeSpan.FromMinutes(backtestOptions.CandlePeriod)));
+
                         if (candles.Count == 0 || candles.Last().Timestamp.ToUniversalTime() == startDate)
                         {
                             callback($"\tNo update: {backtestOptions.Exchange.ToString()} with Period {backtestOptions.CandlePeriod.ToString()}min for {globalSymbol} {startDate.ToUniversalTime()} to {endDate.RoundDown(TimeSpan.FromMinutes(backtestOptions.CandlePeriod))} UTC");

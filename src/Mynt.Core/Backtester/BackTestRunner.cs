@@ -1,10 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Mynt.Backtester.Models;
 using Mynt.Core.Enums;
 using Mynt.Core.Exchanges;
 using Mynt.Core.Interfaces;
+using Mynt.Core.Models;
 using Mynt.Core.Utility;
 
 namespace Mynt.Core.Backtester
@@ -28,17 +29,36 @@ namespace Mynt.Core.Backtester
                 try
                 {
                     var trend = strategy.Prepare(candles);
+                    var signals = new List<TradeSignal>();
 
                     for (int i = 0; i < trend.Count; i++)
                     {
                         if (trend[i] == TradeAdvice.Buy)
                         {
+                            var id = Guid.NewGuid();
+
+                            signals.Add(new TradeSignal
+                            {
+                                id = id,
+                                MarketName = globalSymbol,
+                                Price = candles[i].Close,
+                                TradeAdvice = TradeAdvice.Buy,
+                                SignalCandle = candles[i],
+                                Timestamp = candles[i].Timestamp,
+                                StrategyName = strategy.Name
+                            });
+
                             // Calculate win/lose forwards from buy point
                             for (int j = i; j < trend.Count; j++)
                             {
                                 // Sell as soon as the strategy tells us to..
-                                if (trend[j] == TradeAdvice.Sell)
+                                if (trend[j] == TradeAdvice.Sell
+                                    || ShouldSell((double)candles[i].Close, (double)candles[j].Close, candles[j].Timestamp) != SellType.None
+                                    )
                                 {
+                                    //if (candles[i].Close == 0 || candles[j].Close == 0)
+                                    //    continue;
+
                                     // We ignore fees for now. Goal of the backtester is to compare strategy efficiency.
                                     var currentProfitPercentage = ((candles[j].Close - candles[i].Close) / candles[i].Close) * 100;
                                     var quantity = backtestOptions.StakeAmount / candles[i].Close; // We always trade with 0.1 BTC.
@@ -57,6 +77,20 @@ namespace Mynt.Core.Backtester
                                         EndDate = candles[j].Timestamp
                                     });
 
+                                    signals.Add(new TradeSignal
+                                    {
+                                        id = Guid.NewGuid(),
+                                        parentId = id,
+                                        MarketName = globalSymbol,
+                                        Price = candles[j].Close,
+                                        TradeAdvice = TradeAdvice.Sell,
+                                        SignalCandle = candles[j],
+                                        Profit = currentProfit,
+                                        PercentageProfit = currentProfitPercentage,
+                                        Timestamp = candles[j].Timestamp,
+                                        StrategyName = strategy.Name
+                                    });
+
                                     if (backtestOptions.OnlyStartNewTradesWhenSold)
                                         i = j;
 
@@ -66,6 +100,7 @@ namespace Mynt.Core.Backtester
                         }
                     }
 
+                    //await candleProvider.SaveTradeSignals(backtestOptions, dataStore, signals);
                 }
                 catch (Exception ex)
                 {
@@ -77,6 +112,31 @@ namespace Mynt.Core.Backtester
             }
 
             return results;
+        }
+
+        private SellType ShouldSell(double tradeOpenRate, double currentRateBid, DateTime utcNow)
+        {
+            var currentProfit = (currentRateBid - tradeOpenRate) / tradeOpenRate;
+
+            if (currentProfit < -0.08) //stopLossPercentage
+                return SellType.StopLoss;
+
+            if (currentProfit >= 0.08)
+                return SellType.Immediate;
+
+            //if (currentProfit > 0.04)
+            //	return SellType.Timed;
+
+            // Check if time matches and current rate is above threshold
+            //foreach (var item in returnOnInvestment)
+            //{
+            //	var timeDiff = (utcNow - tradeOpenRate).TotalSeconds / 60;
+
+            //	if (timeDiff >= item.Duration && currentProfit > item.Profit)
+            //		return SellType.Timed;
+            //}
+
+            return SellType.None;
         }
     }
 }

@@ -1,45 +1,41 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using Mynt.Core.Enums;
+using Mynt.Core.Extensions;
 using Mynt.Core.Indicators;
+using Mynt.Core.Interfaces;
 using Mynt.Core.Models;
 
 namespace Mynt.Core.Strategies
 {
-    public class FreqTrade : BaseStrategy
+    public class PivotMaestro : BaseStrategy
     {
-        public override string Name => "FreqTrade";
-        public override int MinimumAmountOfCandles => 40;
+        public override string Name => "PivotMaestro";
+        public override int MinimumAmountOfCandles => 10;
         public override Period IdealPeriod => Period.QuarterOfAnHour;
 
         public override List<TradeAdvice> Prepare(List<Candle> candles)
         {
             var result = new List<TradeAdvice>();
 
-            var rsi = candles.Rsi(14);
-            var adx = candles.Adx(14);
-            var plusDi = candles.PlusDI(14);
-            var minusDi = candles.MinusDI(14);
-            var fast = candles.StochFast();
+            var high = candles.PivotHigh(4, 2, false);
+            var low = candles.PivotLow(4, 2, false);
+            var lows = candles.Low();
 
             for (int i = 0; i < candles.Count; i++)
             {
-                if (
-                    rsi[i] < 25
-                    && fast.D[i] < 30
-                    && adx[i] > 30
-                    && plusDi[i] > 5
-                    )
+                // Buy when a lower pivot was found.
+                if (low[i].HasValue)
                     result.Add(TradeAdvice.Buy);
 
-                else if (
-                    adx[i] > 0
-                    && minusDi[i] > 0
-                    && fast.D[i] > 65
-                    )
+                // Either a upper pivot or a new potential low pivot should make us sell.
+                else if (high[i].HasValue || (i > 3 && (lows[i] <= lows[i - 1] && lows[i] <= lows[i - 2] && lows[i] <= lows[i - 3] && lows[i] <= lows[i - 4])))
                     result.Add(TradeAdvice.Sell);
 
+                // Hold otherwise
                 else
                     result.Add(TradeAdvice.Hold);
             }
