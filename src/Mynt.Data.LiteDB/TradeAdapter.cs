@@ -37,5 +37,6 @@ namespace Mynt.Data.LiteDB
         public SellType SellType { get; set; }
 
         public bool PaperTrading { get; set; }
+        public Ticker TickerLast { get; set; }
     }
 }

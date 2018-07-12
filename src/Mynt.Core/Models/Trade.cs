@@ -45,8 +45,6 @@ namespace Mynt.Core.Models
         }
 
         // Used for MyntUI output
-        public decimal? OpenProfit { get; set; }
-        public decimal? OpenProfitPercentage { get; set; }
         public Ticker TickerLast { get; set; }
     }
 }
