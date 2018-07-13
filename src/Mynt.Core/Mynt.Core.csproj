@@ -34,7 +34,6 @@
     <Compile Remove="Strategies\Momentum.cs" />
     <Compile Remove="Strategies\PatternTrading.cs" />
     <Compile Remove="Strategies\PowerRanger.cs" />
-    <Compile Remove="Strategies\QuickSma.cs" />
     <Compile Remove="Strategies\Replex.cs" />
     <Compile Remove="Strategies\RsiBbands.cs" />
     <Compile Remove="Strategies\RsiMacd.cs" />
