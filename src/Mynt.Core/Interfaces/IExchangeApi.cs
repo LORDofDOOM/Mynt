@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using ExchangeSharp;
 using Mynt.Core.Enums;
 using Mynt.Core.Models;
 
@@ -14,7 +15,7 @@ namespace Mynt.Core.Interfaces
 
         Task<AccountBalance> GetBalance(string currency);
 
-        Task<List<MarketSummary>> GetMarketSummaries(string quoteCurrency);
+        Task<List<Models.MarketSummary>> GetMarketSummaries(string quoteCurrency);
 
         Task<Order> GetOrder(string orderId, string market);
 
@@ -29,5 +30,11 @@ namespace Mynt.Core.Interfaces
         Task<List<Candle>> GetTickerHistory(string market, Period period, DateTime startDate, DateTime? endDate = null);
 
         Task<List<Candle>> GetTickerHistory(string market, Period period, int length);
+
+        Task<string> GlobalSymbolToExchangeSymbol(string symbol);
+
+        Task<string> ExchangeCurrencyToGlobalCurrency(string symbol);
+
+        Task<ExchangeAPI> GetFullApi();
     }
 }

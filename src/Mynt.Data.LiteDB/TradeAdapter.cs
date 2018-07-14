@@ -43,5 +43,7 @@ namespace Mynt.Data.LiteDB
         public decimal SellOnPercentage { get; set; }
         public bool HoldPosition { get; set; }
         public bool SellNow { get; set; }
+        public string GlobalSymbol { get; set; }
+        public string Exchange { get; set; }
     }
 }
