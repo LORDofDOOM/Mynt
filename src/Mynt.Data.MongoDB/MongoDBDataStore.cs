@@ -1,8 +1,8 @@
-﻿using System.Collections.Generic;
-using System.Threading.Tasks;
 using MongoDB.Driver;
 using Mynt.Core.Interfaces;
 using Mynt.Core.Models;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Mynt.Data.MongoDB
 {
@@ -18,6 +18,7 @@ namespace Mynt.Data.MongoDB
         {
             mongoDbOptions = options;
             client = new MongoClient(options.MongoUrl);
+            database = client.GetDatabase("Mynt");
             ordersAdapter = database.GetCollection<TradeAdapter>("Orders");
             traderAdapter = database.GetCollection<TraderAdapter>("Traders");
         }
@@ -28,7 +29,7 @@ namespace Mynt.Data.MongoDB
 
         public async Task<List<Trade>> GetClosedTradesAsync()
         {
-            var trades = await ordersAdapter.Find(x => x.IsOpen).ToListAsync();
+            var trades = await ordersAdapter.Find(x => !x.IsOpen).ToListAsync();
             var items = Mapping.Mapper.Map<List<Trade>>(trades);
 
             return items;
