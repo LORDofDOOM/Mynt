@@ -102,8 +102,7 @@ namespace Mynt.Core.TradeManagers
                     CurrentBalance = _settings.AmountToInvestPerTrader,
                     IsBusy = false,
                     LastUpdated = DateTime.UtcNow,
-                    StakeAmount = _settings.AmountToInvestPerTrader,
-                    IsPaperTrade = _settings.PaperTrade
+                    StakeAmount = _settings.AmountToInvestPerTrader
                 };
 
                 traders.Add(newTrader);
@@ -242,13 +241,13 @@ namespace Mynt.Core.TradeManagers
                     trade.IsSelling = true;
 
                     _dataStore.SaveTradeAsync(trade);
-                    return;
+                    continue;
                 }
                 // Hold
                 if (trade.HoldPosition)
                 {
                     await SendNotification($"Hold is set: Ignore {trade.TradeId}");
-                    return;
+                    continue;
                 }
 
                 // Sell if defined percentage is reached
@@ -266,12 +265,12 @@ namespace Mynt.Core.TradeManagers
                     trade.IsSelling = true;
 
                     _dataStore.SaveTradeAsync(trade);
-                    return;
+                    continue;
                 }
 
                 if (trade.SellOnPercentage != 0)
                 {
-                    return;
+                    continue;
                 }
 
 
@@ -542,7 +541,8 @@ namespace Mynt.Core.TradeManagers
                 SellType = SellType.None,
                 TickerLast = await _api.GetTicker(pair),
                 GlobalSymbol = await _api.ExchangeCurrencyToGlobalCurrency(pair),
-                Exchange = fullApi.Name
+                Exchange = fullApi.Name,
+                PaperTrade = _settings.PaperTrade
             };
 
             if (_settings.PlaceFirstStopAtSignalCandleLow)

@@ -53,5 +53,6 @@ namespace Mynt.Core.Models
         public bool SellNow { get; set; } = false;
         public string GlobalSymbol { get; set; }
         public string Exchange { get; set; }
+        public bool PaperTrade { get; set; } = true;
     }
 }

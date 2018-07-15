@@ -51,5 +51,6 @@ namespace Mynt.Data.MongoDB
         public bool SellNow { get; set; }
         public string GlobalSymbol { get; set; }
         public string Exchange { get; set; }
+        public string PaperTrade { get; set; }
     }
 }
