@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace Mynt.Core.Models
 {
@@ -13,6 +13,7 @@ namespace Mynt.Core.Models
         public DateTime LastUpdated { get; set; }
         public bool IsBusy { get; set; }
         public bool IsArchived { get; set; }
+        public bool IsPaperTrade { get; set; }
 
         // Used for MyntUI output
         public Trade ActiveTrade { get; set; }
