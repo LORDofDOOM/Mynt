@@ -137,7 +137,7 @@ namespace Mynt.Core.Exchanges
 			if (_exchange == Exchange.Huobi || _exchange == Exchange.Okex)
 				return await GetExtendedMarketSummaries(quoteCurrency);
 
-			var summaries = await _api.GetTickersAsync();
+			var summaries = _api.GetTickersAsync().Result;
 
 			if (summaries.Any())
 			{
@@ -302,15 +302,20 @@ namespace Mynt.Core.Exchanges
 			return _exchangeInfo.FirstOrDefault(x => x.MarketName == symbol);
 		}
 
-	    public string GlobalSymbolToExchangeSymbol(string symbol)
+	    public async Task<string> GlobalSymbolToExchangeSymbol(string symbol)
 	    {
             return _api.GlobalSymbolToExchangeSymbol(symbol);
 	    }
 
-	    public string ExchangeCurrencyToGlobalCurrency(string symbol)
+	    public async Task<string> ExchangeCurrencyToGlobalCurrency(string symbol)
 	    {
             return _api.ExchangeSymbolToGlobalSymbol(symbol);
 	    }
+
+        public async Task<ExchangeAPI> GetFullApi()
+        {
+            return _api;
+        }
 
         #endregion
 
