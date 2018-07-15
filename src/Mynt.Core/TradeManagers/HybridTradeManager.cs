@@ -758,9 +758,9 @@ namespace Mynt.Core.TradeManagers
         /// <param name="currentRateBid"></param>
         /// <param name="utcNow"></param>
         /// <returns>True if bot should sell at current rate.</returns>
-        private SellType ShouldSell(Trade trade, decimal currentRateBid, DateTime utcNow)
+        private async Task<SellType> ShouldSell(Trade trade, Ticker ticker, DateTime utcNow)
         {
-            var currentProfit = (currentRateBid - trade.OpenRate) / trade.OpenRate;
+            var currentProfit = (ticker.Bid - trade.OpenRate) / trade.OpenRate;
 
             _logger.LogInformation("Should sell {Market}? Profit: {Profit}%...", trade.Market, (currentProfit * 100).ToString("0.00"));
 
@@ -798,7 +798,7 @@ namespace Mynt.Core.TradeManagers
             if (_settings.EnableTrailingStop)
             {
                 // If the current rate is below our current stoploss percentage, close the trade.
-                if (trade.StopLossRate.HasValue && currentRateBid < trade.StopLossRate.Value)
+                if (trade.StopLossRate.HasValue && ticker.Bid < trade.StopLossRate.Value)
                     return SellType.TrailingStopLoss;
 
                 // The new stop would be at a specific percentage above our starting point.
