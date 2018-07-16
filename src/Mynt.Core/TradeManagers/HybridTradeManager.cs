@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Mynt.Core.Enums;
@@ -9,7 +10,7 @@ using Mynt.Core.Models;
 
 namespace Mynt.Core.TradeManagers
 {
-    public class LiveTradeManager : ITradeManager
+    public class HybridTradeManager : ITradeManager
     {
         private readonly IExchangeApi _api;
         private readonly List<INotificationManager> _notification;
@@ -18,15 +19,17 @@ namespace Mynt.Core.TradeManagers
         private List<Trade> _activeTrades;
         private List<Trader> _currentTraders;
         private readonly IDataStore _dataStore;
+        private readonly OrderBehavior _orderBehavior;
         private readonly TradeOptions _settings;
 
-        public LiveTradeManager(IExchangeApi api, ITradingStrategy strategy, List<INotificationManager> notificationManager, ILogger logger, TradeOptions settings, IDataStore dataStore)
+        public HybridTradeManager(IExchangeApi api, ITradingStrategy strategy, List<INotificationManager> notificationManager, ILogger logger, TradeOptions settings, IDataStore dataStore, OrderBehavior orderBehavior = OrderBehavior.AlwaysFill)
         {
             _api = api;
             _strategy = strategy;
             _logger = logger;
             _notification = notificationManager;
             _dataStore = dataStore;
+            _orderBehavior = orderBehavior;
             _settings = settings;
 
             if (_api == null) throw new ArgumentException("Invalid exchange provided...");
@@ -45,7 +48,7 @@ namespace Mynt.Core.TradeManagers
 
             if (initTraders)
             {
-                var currentTraders = await _dataStore.GetTradersAsync();
+                var currentTraders = _dataStore.GetTradersAsync().Result;
 
                 _logger.LogInformation("Currently have {CurrentTraders} traders out of {AllTraders}...", currentTraders.Count, _settings.MaxNumberOfConcurrentTrades);
 
@@ -61,8 +64,8 @@ namespace Mynt.Core.TradeManagers
             }
 
             // Get a list of our busy traders
-            _activeTrades = await _dataStore.GetActiveTradesAsync();
-            _currentTraders = await _dataStore.GetBusyTradersAsync();
+            _activeTrades = _dataStore.GetActiveTradesAsync().Result;
+            _currentTraders = _dataStore.GetBusyTradersAsync().Result;
         }
 
         private async Task ArchiveTraders(List<Trader> currentTraders)
@@ -84,7 +87,7 @@ namespace Mynt.Core.TradeManagers
                 }
             }
 
-            await _dataStore.SaveTradersAsync(currentTraders);
+            _dataStore.SaveTradersAsync(currentTraders);
         }
 
         private async Task CreateTraders(int currentAmount)
@@ -99,7 +102,7 @@ namespace Mynt.Core.TradeManagers
                     CurrentBalance = _settings.AmountToInvestPerTrader,
                     IsBusy = false,
                     LastUpdated = DateTime.UtcNow,
-                    StakeAmount = _settings.AmountToInvestPerTrader,
+                    StakeAmount = _settings.AmountToInvestPerTrader
                 };
 
                 traders.Add(newTrader);
@@ -107,7 +110,7 @@ namespace Mynt.Core.TradeManagers
 
             if (traders.Count > 0)
             {
-                await _dataStore.SaveTradersAsync(traders);
+                _dataStore.SaveTradersAsync(traders);
             }
         }
 
@@ -127,7 +130,7 @@ namespace Mynt.Core.TradeManagers
             _logger.LogInformation($"Looking for trades using {_strategy.Name}");
 
             // This means an order to buy has been open for an entire buy cycle.
-            if (_settings.CancelUnboughtOrdersEachCycle)
+            if (_settings.CancelUnboughtOrdersEachCycle && _orderBehavior == OrderBehavior.CheckMarket)
                 await CancelUnboughtOrders();
 
             // Check active trades against our strategy.
@@ -135,7 +138,7 @@ namespace Mynt.Core.TradeManagers
             await CheckActiveTradesAgainstStrategy();
 
             // Check if there is room for more trades
-            var freeTraders = await _dataStore.GetAvailableTradersAsync();
+            var freeTraders = _dataStore.GetAvailableTradersAsync().Result;
 
             // We have available traders to work for us!
             if (freeTraders.Count > 0)
@@ -173,14 +176,18 @@ namespace Mynt.Core.TradeManagers
                 // Loop our current trades that are still looking to buy if there are any.
                 foreach (var trade in _activeTrades.Where(x => x.IsBuying))
                 {
-                    // Cancel our open buy order on the exchange.
-                    var exchangeOrder = await _api.GetOrder(trade.BuyOrderId, trade.Market);
+                    // Only in livetrading
+                    if (!_settings.PaperTrade)
+                    {
+                        // Cancel our open buy order on the exchange.
+                        var exchangeOrder = await _api.GetOrder(trade.BuyOrderId, trade.Market);
 
-                    // If this order is PartiallyFilled, don't cancel
-                    if (exchangeOrder?.Status == OrderStatus.PartiallyFilled)
-                        continue;  // not yet completed so wait
+                        // If this order is PartiallyFilled, don't cancel
+                        if (exchangeOrder?.Status == OrderStatus.PartiallyFilled)
+                            continue;  // not yet completed so wait
 
-                    await _api.CancelOrder(trade.BuyOrderId, trade.Market);
+                        await _api.CancelOrder(trade.BuyOrderId, trade.Market);
+                    }
 
                     // Update the buy order in our data storage.
                     trade.IsBuying = false;
@@ -190,7 +197,7 @@ namespace Mynt.Core.TradeManagers
                     trade.CloseDate = DateTime.UtcNow;
 
                     // Update the order
-                    await _dataStore.SaveTradeAsync(trade);
+                    _dataStore.SaveTradeAsync(trade);
 
                     // Handle the trader that was dedicated to this order.
                     var currentTrader = _currentTraders.FirstOrDefault(x => x.Identifier == trade.TraderId);
@@ -202,7 +209,7 @@ namespace Mynt.Core.TradeManagers
                         currentTrader.LastUpdated = DateTime.UtcNow;
 
                         // Update the trader to indicate that we're not busy anymore.
-                        await _dataStore.SaveTraderAsync(currentTrader);
+                        _dataStore.SaveTraderAsync(currentTrader);
                     }
 
                     await SendNotification($"Cancelled {trade.Market} buy order because it wasn't filled in time.");
@@ -220,6 +227,53 @@ namespace Mynt.Core.TradeManagers
             // Check our active trades for a sell signal from the strategy
             foreach (var trade in _activeTrades.Where(x => !x.IsSelling && x.IsOpen))
             {
+                //Check against main conditions -> No Signal mode
+                // Sell if we setup instant sell
+                if (trade.SellNow)
+                {
+                    await SendNotification($"Sell now is set: Selling with {(trade.SellOnPercentage / 100)} for {trade.TradeId}");
+
+                    var orderId = Guid.NewGuid().ToString().Replace("-", "");
+                    trade.CloseRate = trade.TickerLast.Bid;
+                    trade.OpenOrderId = orderId;
+                    trade.SellOrderId = orderId;
+                    trade.SellType = SellType.Immediate;
+                    trade.IsSelling = true;
+
+                    _dataStore.SaveTradeAsync(trade);
+                    continue;
+                }
+                // Hold
+                if (trade.HoldPosition)
+                {
+                    await SendNotification($"Hold is set: Ignore {trade.TradeId}");
+                    continue;
+                }
+
+                // Sell if defined percentage is reached
+                //await SendNotification($"Try to sell:  {trade.TradeId} - {currentProfit * 100} {trade.SellOnPercentage}");
+                var currentProfit = (trade.TickerLast.Bid - trade.OpenRate) / trade.OpenRate;
+                if ((currentProfit) >= (trade.SellOnPercentage / 100))
+                {
+                    await SendNotification($"We've reached defined percentage ({(trade.SellOnPercentage)})for {trade.TradeId} - Selling now");
+                    var orderId = Guid.NewGuid().ToString().Replace("-", "");
+
+                    trade.CloseRate = trade.TickerLast.Bid;
+                    trade.OpenOrderId = orderId;
+                    trade.SellOrderId = orderId;
+                    trade.SellType = SellType.Immediate;
+                    trade.IsSelling = true;
+
+                    _dataStore.SaveTradeAsync(trade);
+                    continue;
+                }
+
+                if (trade.SellOnPercentage != 0)
+                {
+                    continue;
+                }
+
+
                 var signal = await GetStrategySignal(trade.Market);
 
                 // If the strategy is telling us to sell we need to do so.
@@ -227,7 +281,11 @@ namespace Mynt.Core.TradeManagers
                 {
                     // Create a sell order for our strategy.
                     var ticker = await _api.GetTicker(trade.Market);
-                    var orderId = await _api.Sell(trade.Market, trade.Quantity, ticker.Bid);
+
+                    // Check Trading Mode
+                    var orderId = _settings.PaperTrade
+                        ? Guid.NewGuid().ToString().Replace("-", "")
+                        : await _api.Sell(trade.Market, trade.Quantity, ticker.Bid);
 
                     trade.CloseRate = ticker.Bid;
                     trade.OpenOrderId = orderId;
@@ -235,7 +293,7 @@ namespace Mynt.Core.TradeManagers
                     trade.SellType = SellType.Strategy;
                     trade.IsSelling = true;
 
-                    await _dataStore.SaveTradeAsync(trade);
+                    _dataStore.SaveTradeAsync(trade);
                 }
             }
         }
@@ -269,8 +327,31 @@ namespace Mynt.Core.TradeManagers
             foreach (var market in _settings.MarketBlackList)
                 markets.RemoveAll(x => x.CurrencyPair.BaseCurrency == market);
 
+
+            // Buy from external - Currently for Debug -> This will buy on each tick !
+            /*var externalTicker = await _api.GetTicker("LINKBTC");
+            Candle externalCandle = new Candle();
+            externalCandle.Timestamp = DateTime.UtcNow;
+            externalCandle.Open = externalTicker.Last;
+            externalCandle.High = externalTicker.Last;
+            externalCandle.Volume = externalTicker.Volume;
+            externalCandle.Close = externalTicker.Last;
+            pairs.Add(new TradeSignal
+            {
+                MarketName = "LINKBTC",
+                QuoteCurrency = "LINK",
+                BaseCurrency = "BTC",
+                TradeAdvice = TradeAdvice.StrongBuy,
+                SignalCandle = externalCandle
+            });
+            */
+
             // Prioritize markets with high volume.
-            foreach (var market in markets.Distinct().OrderByDescending(x => x.Volume).ToList())
+            CancellationTokenSource cts = new CancellationTokenSource();
+            ParallelOptions parallelOptions = new ParallelOptions();
+            parallelOptions.CancellationToken = cts.Token;
+            parallelOptions.MaxDegreeOfParallelism = Environment.ProcessorCount;
+            Parallel.ForEach(markets.Distinct().OrderByDescending(x => x.Volume).ToList(), parallelOptions, async market =>
             {
                 var signal = await GetStrategySignal(market.MarketName);
 
@@ -286,7 +367,7 @@ namespace Mynt.Core.TradeManagers
                         SignalCandle = signal.SignalCandle
                     });
                 }
-            }
+            });
 
             return pairs;
         }
@@ -352,6 +433,7 @@ namespace Mynt.Core.TradeManagers
         /// Calculates bid target between current ask price and last price.
         /// </summary>
         /// <param name="tick"></param>
+        /// <param name="signalCandle"></param>
         /// <returns></returns>
         private decimal GetTargetBid(Ticker tick, Candle signalCandle)
         {
@@ -384,7 +466,9 @@ namespace Mynt.Core.TradeManagers
         {
             // Get our Bitcoin balance from the exchange
             var exchangeQuoteBalance = await _api.GetBalance(signal.QuoteCurrency);
-            var currentQuoteBalance = exchangeQuoteBalance.Available;
+
+            // Check trading mode
+            var currentQuoteBalance = _settings.PaperTrade ? 9999 : exchangeQuoteBalance.Available;
 
             // Do we even have enough funds to invest?
             if (currentQuoteBalance < freeTrader.CurrentBalance)
@@ -399,7 +483,7 @@ namespace Mynt.Core.TradeManagers
             if (order != null)
             {
                 // Save the order.
-                await _dataStore.SaveTradeAsync(order);
+                _dataStore.SaveTradeAsync(order);
 
                 // Send a notification that we found something suitable
                 _logger.LogInformation("New trade signal {Market}...", order.Market);
@@ -409,7 +493,7 @@ namespace Mynt.Core.TradeManagers
                 freeTrader.IsBusy = true;
 
                 // Save the new trader state.
-                await _dataStore.SaveTraderAsync(freeTrader);
+                _dataStore.SaveTraderAsync(freeTrader);
             }
         }
 
@@ -436,10 +520,11 @@ namespace Mynt.Core.TradeManagers
 
             // Get the order ID, this is the most important because we need this to check
             // up on our trade. We update the data below later when the final data is present.
-            var orderId = await _api.Buy(pair, amount, openRate);
+            var orderId = _settings.PaperTrade ? GetOrderId() : await _api.Buy(pair, amount, openRate);
 
             await SendNotification($"Buying #{pair} with limit {openRate:0.00000000} BTC ({amount:0.0000} units).");
 
+            var fullApi = await _api.GetFullApi();
             var trade = new Trade()
             {
                 TraderId = freeTrader.Identifier,
@@ -454,6 +539,10 @@ namespace Mynt.Core.TradeManagers
                 IsBuying = true,
                 StrategyUsed = _strategy.Name,
                 SellType = SellType.None,
+                TickerLast = await _api.GetTicker(pair),
+                GlobalSymbol = await _api.ExchangeCurrencyToGlobalCurrency(pair),
+                Exchange = fullApi.Name,
+                PaperTrade = _settings.PaperTrade
             };
 
             if (_settings.PlaceFirstStopAtSignalCandleLow)
@@ -496,39 +585,57 @@ namespace Mynt.Core.TradeManagers
             // This means its a buy trade that is waiting to get bought. See if we can update that first.
             foreach (var trade in _activeTrades.Where(x => x.IsBuying))
             {
-                var exchangeOrder = await _api.GetOrder(trade.BuyOrderId, trade.Market);
-
+                // Check trading mode
                 _logger.LogInformation("Checking {Market} BUY order @ {OpenRate}...", trade.Market, trade.OpenRate.ToString("0.00000000"));
 
-                // if this order is filled, we can update our database.
-                if (exchangeOrder?.Status == OrderStatus.Filled)
+                if (_settings.PaperTrade)
                 {
-                    trade.OpenOrderId = null;
-                    trade.StakeAmount = exchangeOrder.OriginalQuantity * exchangeOrder.Price;
-                    trade.Quantity = exchangeOrder.OriginalQuantity;
-                    trade.OpenRate = exchangeOrder.Price;
-                    trade.OpenDate = exchangeOrder.OrderDate;
-                    trade.IsBuying = false;
+                    // Papertrading
+                    var candles = await _api.GetTickerHistory(trade.Market, Period.Minute, 1);
+                    var candle = candles.FirstOrDefault();
 
-                    _logger.LogInformation("{Market} BUY order filled @ {OpenRate}...", trade.Market, trade.OpenRate.ToString("0.00000000"));
 
-                    // If this is enabled we place a sell order as soon as our buy order got filled.
-                    if (_settings.ImmediatelyPlaceSellOrder)
+                    if (candle != null && (trade.OpenRate >= candle.High || (trade.OpenRate >= candle.Low && trade.OpenRate <= candle.High) || _orderBehavior == OrderBehavior.AlwaysFill))
                     {
-                        var sellPrice = Math.Round(trade.OpenRate * (1 + _settings.ImmediatelyPlaceSellOrderAtProfit), 8);
-                        var orderId = await _api.Sell(trade.Market, trade.Quantity, sellPrice);
-
-                        trade.CloseRate = sellPrice;
-                        trade.OpenOrderId = orderId;
-                        trade.SellOrderId = orderId;
-                        trade.IsSelling = true;
-                        trade.SellType = SellType.Immediate;
-
-                        _logger.LogInformation("{Market} order placed @ {CloseRate}...", trade.Market, trade.CloseRate?.ToString("0.00000000"));
+                        trade.OpenOrderId = null;
+                        trade.IsBuying = false;
                     }
-
-                    await _dataStore.SaveTradeAsync(trade);
                 }
+                else
+                {
+                    // Livetrading
+                    var exchangeOrder = await _api.GetOrder(trade.BuyOrderId, trade.Market);
+
+                    // if this order is filled, we can update our database.
+                    if (exchangeOrder?.Status == OrderStatus.Filled)
+                    {
+                        trade.OpenOrderId = null;
+                        trade.StakeAmount = exchangeOrder.OriginalQuantity * exchangeOrder.Price;
+                        trade.Quantity = exchangeOrder.OriginalQuantity;
+                        trade.OpenRate = exchangeOrder.Price;
+                        trade.OpenDate = exchangeOrder.OrderDate;
+                        trade.IsBuying = false;
+                    }
+                }
+                
+                _logger.LogInformation("{Market} BUY order filled @ {OpenRate}...", trade.Market, trade.OpenRate.ToString("0.00000000"));
+
+                // If this is enabled we place a sell order as soon as our buy order got filled.
+                if (_settings.ImmediatelyPlaceSellOrder)
+                {
+                    var sellPrice = Math.Round(trade.OpenRate * (1 + _settings.ImmediatelyPlaceSellOrderAtProfit), 8);
+                    var orderId = _settings.PaperTrade ? GetOrderId() : await _api.Sell(trade.Market, trade.Quantity, sellPrice);
+
+                    trade.CloseRate = sellPrice;
+                    trade.OpenOrderId = orderId;
+                    trade.SellOrderId = orderId;
+                    trade.IsSelling = true;
+                    trade.SellType = SellType.Immediate;
+
+                    _logger.LogInformation("{Market} order placed @ {CloseRate}...", trade.Market, trade.CloseRate?.ToString("0.00000000"));
+                }
+
+                _dataStore.SaveTradeAsync(trade);
             }
         }
 
@@ -543,40 +650,59 @@ namespace Mynt.Core.TradeManagers
 
             foreach (var order in _activeTrades.Where(x => x.IsSelling))
             {
-                var exchangeOrder = await _api.GetOrder(order.SellOrderId, order.Market);
-
+                // Check trading mode
                 _logger.LogInformation("Checking {Market} SELL order @ {CloseRate}...", order.Market, order.CloseRate?.ToString("0.00000000"));
 
-                // if this order is filled, we can update our database.
-                if (exchangeOrder?.Status == OrderStatus.Filled)
+                if (_settings.PaperTrade)
                 {
-                    order.OpenOrderId = null;
-                    order.IsOpen = false;
-                    order.IsSelling = false;
-                    order.CloseDate = exchangeOrder.OrderDate;
-                    order.CloseRate = exchangeOrder.Price;
-
-                    _logger.LogInformation("{Market} SELL order filled @ {CloseRate}...", order.Market, order.CloseRate?.ToString("0.00000000"));
-
-                    order.CloseProfit = (exchangeOrder.Price * exchangeOrder.OriginalQuantity) - order.StakeAmount;
-                    order.CloseProfitPercentage = ((exchangeOrder.Price * exchangeOrder.OriginalQuantity) - order.StakeAmount) / order.StakeAmount * 100;
-
-                    // Retrieve the trader responsible for this trade
-                    var trader = _currentTraders.FirstOrDefault(x => x.Identifier == order.TraderId);
-
-                    if (trader != null)
+                    // Papertrading
+                    var candles = await _api.GetTickerHistory(order.Market, Period.Minute, 1);
+                    var candle = candles.FirstOrDefault();
+                    
+                    if (candle != null && (order.CloseRate <= candle.Low || (order.CloseRate >= candle.Low && order.CloseRate <= candle.High) || _orderBehavior == OrderBehavior.AlwaysFill))
                     {
-                        trader.IsBusy = false;
-                        trader.CurrentBalance += order.CloseProfit.Value;
-                        trader.CurrentBalance = Math.Round(trader.CurrentBalance, 8);
-                        trader.LastUpdated = DateTime.UtcNow;
+                        order.OpenOrderId = null;
+                        order.IsOpen = false;
+                        order.IsSelling = false;
+                        order.CloseDate = DateTime.UtcNow;
+                        order.CloseProfit = (order.CloseRate * order.Quantity) - order.StakeAmount;
+                        order.CloseProfitPercentage = ((order.CloseRate * order.Quantity) - order.StakeAmount) / order.StakeAmount * 100;
                     }
-
-                    await _dataStore.SaveTradeAsync(order);
-                    await _dataStore.SaveTraderAsync(trader);
-
-                    await SendNotification($"Selling #{order.Market} with limit {order.CloseRate:0.00000000} BTC (profit: ± {order.CloseProfitPercentage:0.00}%, {order.CloseProfit:0.00000000} BTC).");
                 }
+                else
+                {
+                    // Livetrading
+                    var exchangeOrder = await _api.GetOrder(order.SellOrderId, order.Market);
+
+                    // if this order is filled, we can update our database.
+                    if (exchangeOrder?.Status == OrderStatus.Filled)
+                    {
+                        order.OpenOrderId = null;
+                        order.IsOpen = false;
+                        order.IsSelling = false;
+                        order.CloseDate = exchangeOrder.OrderDate;
+                        order.CloseRate = exchangeOrder.Price;
+                        order.CloseProfit = (exchangeOrder.Price * exchangeOrder.OriginalQuantity) - order.StakeAmount;
+                        order.CloseProfitPercentage = ((exchangeOrder.Price * exchangeOrder.OriginalQuantity) - order.StakeAmount) / order.StakeAmount * 100;
+                    }
+                }
+                
+                // Retrieve the trader responsible for this trade
+                var trader = _currentTraders.FirstOrDefault(x => x.Identifier == order.TraderId);
+
+                if (trader != null)
+                {
+                    trader.IsBusy = false;
+                    trader.CurrentBalance += order.CloseProfit.Value;
+                    trader.CurrentBalance = Math.Round(trader.CurrentBalance, 8);
+                    trader.LastUpdated = DateTime.UtcNow;
+                }
+
+                _dataStore.SaveTradeAsync(order);
+                _dataStore.SaveTraderAsync(trader);
+
+                await SendNotification($"Selling #{order.Market} with limit {order.CloseRate:0.00000000} BTC (profit: ± {order.CloseProfitPercentage:0.00}%, {order.CloseProfit:0.00000000} BTC).");
+                
             }
         }
 
@@ -590,24 +716,29 @@ namespace Mynt.Core.TradeManagers
             // that means its a trade that is waiting to get sold. See if we can update that first.
 
             // An open order currently not selling or being an immediate sell are checked for SL  etc.
-			foreach (var trade in _activeTrades.Where(x => !x.IsSelling && !x.IsBuying && x.IsOpen))
+            // Prioritize markets with high volume.
+            CancellationTokenSource cts = new CancellationTokenSource();
+            ParallelOptions parallelOptions = new ParallelOptions();
+            parallelOptions.CancellationToken = cts.Token;
+            parallelOptions.MaxDegreeOfParallelism = Environment.ProcessorCount;
+            Parallel.ForEach(_activeTrades.Where(x => !x.IsSelling && !x.IsBuying && x.IsOpen), parallelOptions, async trade =>
             {
                 // These are trades that are not being bought or sold at the moment so these need to be checked for sell conditions.
-                var ticker = await _api.GetTicker(trade.Market);
-                var sellType = ShouldSell(trade, ticker.Bid, DateTime.UtcNow);
+                var ticker = _api.GetTicker(trade.Market).Result;
+                var sellType = await ShouldSell(trade, ticker, DateTime.UtcNow);
 
                 _logger.LogInformation("Checking {Market} sell conditions...", trade.Market);
 
                 if (sellType == SellType.TrailingStopLossUpdated)
                 {
                     // Update the stop loss for this trade, which was set in ShouldSell.
-                    await _dataStore.SaveTradeAsync(trade);
+                    _dataStore.SaveTradeAsync(trade);
                 }
                 else if (sellType != SellType.None)
                 {
-                    var orderId = await _api.Sell(trade.Market, trade.Quantity, ticker.Bid);
+                    var orderId = _settings.PaperTrade ? GetOrderId() : await _api.Sell(trade.Market, trade.Quantity, ticker.Bid);
 
-                    trade.CloseRate = ticker.Bid;
+                    trade.CloseRate = trade.TickerLast.Bid;
                     trade.OpenOrderId = orderId;
                     trade.SellOrderId = orderId;
                     trade.SellType = sellType;
@@ -615,9 +746,9 @@ namespace Mynt.Core.TradeManagers
 
                     _logger.LogInformation("Selling {Market} ({SellType})...", trade.Market, sellType);
 
-                    await _dataStore.SaveTradeAsync(trade);
+                    _dataStore.SaveTradeAsync(trade);
                 }
-            }
+            });
         }
 
         /// <summary>
@@ -627,11 +758,16 @@ namespace Mynt.Core.TradeManagers
         /// <param name="currentRateBid"></param>
         /// <param name="utcNow"></param>
         /// <returns>True if bot should sell at current rate.</returns>
-        private SellType ShouldSell(Trade trade, decimal currentRateBid, DateTime utcNow)
+        private async Task<SellType> ShouldSell(Trade trade, Ticker ticker, DateTime utcNow)
         {
-            var currentProfit = (currentRateBid - trade.OpenRate) / trade.OpenRate;
+            var currentProfit = (ticker.Bid - trade.OpenRate) / trade.OpenRate;
 
             _logger.LogInformation("Should sell {Market}? Profit: {Profit}%...", trade.Market, (currentProfit * 100).ToString("0.00"));
+
+            var tradeToUpdate = _activeTrades.Where(x => x.TradeId == trade.TradeId).FirstOrDefault();
+            tradeToUpdate.TickerLast = ticker;
+            _dataStore.SaveTradeAsync(tradeToUpdate);
+            await SendNotification($"Update LastPrice for Trade {trade.TradeId}");
 
             // Let's not do a stoploss for now...
             if (currentProfit < _settings.StopLossPercentage)
@@ -662,7 +798,7 @@ namespace Mynt.Core.TradeManagers
             if (_settings.EnableTrailingStop)
             {
                 // If the current rate is below our current stoploss percentage, close the trade.
-                if (trade.StopLossRate.HasValue && currentRateBid < trade.StopLossRate.Value)
+                if (trade.StopLossRate.HasValue && ticker.Bid < trade.StopLossRate.Value)
                     return SellType.TrailingStopLoss;
 
                 // The new stop would be at a specific percentage above our starting point.
@@ -693,15 +829,16 @@ namespace Mynt.Core.TradeManagers
 
         #endregion
 
+        private static string GetOrderId()
+        {
+            return Guid.NewGuid().ToString().Replace("-", string.Empty);
+        }
+
         private async Task SendNotification(string message)
         {
             if (_notification != null)
-            {
                 foreach (var notificationManager in _notification)
-                {
                     await notificationManager.SendNotification(message);
-                }
-            }
         }
     }
 }

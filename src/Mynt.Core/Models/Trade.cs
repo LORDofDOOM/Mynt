@@ -51,5 +51,8 @@ namespace Mynt.Core.Models
         public decimal SellOnPercentage { get; set; } = (decimal)1.0;
         public bool HoldPosition { get; set; } = false;
         public bool SellNow { get; set; } = false;
+        public string GlobalSymbol { get; set; }
+        public string Exchange { get; set; }
+        public bool PaperTrade { get; set; } = true;
     }
 }
