@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using MongoDB.Driver;
 using Mynt.Core.Backtester;
@@ -138,9 +138,5 @@ namespace Mynt.Data.MongoDB
             dbList.DropCollection(backtestOptions.Exchange + "_" + backtestOptions.Coin);
         }
 
-        public Task SaveBacktestTradeSignalsBulk(List<TradeSignal> candles, BacktestOptions backtestOptions)
-        {
-            throw new System.NotImplementedException();
-        }
     }
 }

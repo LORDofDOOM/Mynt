@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -7,15 +7,15 @@ using Mynt.Core.Backtester;
 using Mynt.Core.Interfaces;
 using Mynt.Core.Models;
 
-namespace Mynt.Data.SqlServer
+namespace Mynt.Data.Sqlite
 {
-    public class SqlServerDataStore : IDataStore
+    public class SqliteDataStore : IDataStore
     {
         private readonly MyntDbContext _context;
 
-        public SqlServerDataStore(SqlServerOptions options)
+        public SqliteDataStore(SqliteOptions options)
         {
-            _context = new MyntDbContext(options.SqlServerConnectionString);
+            _context = new MyntDbContext(options.SqliteConnectionString);
         }
 
         public async Task InitializeAsync()
@@ -66,9 +66,9 @@ namespace Mynt.Data.SqlServer
         {
             var items = Mapping.Mapper.Map<List<TraderAdapter>>(traders);
 
-            foreach(var item in items)
+            foreach (var item in items)
                 _context.Traders.Add(item);
-            
+
             await _context.SaveChangesAsync();
         }
 
@@ -90,9 +90,5 @@ namespace Mynt.Data.SqlServer
             return items;
         }
 
-        public Task<List<Trade>> GetClosedTradesAsync()
-        {
-            throw new NotImplementedException();
-        }
     }
 }
