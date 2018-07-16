@@ -119,7 +119,7 @@ namespace Mynt.Core.TradeManagers
         /// Checks if new trades can be started.
         /// </summary>
         /// <returns></returns>
-        public async Task LookForNewTrades()
+        public async Task LookForNewTrades(string strategyString = null)
         {
             // Initialize the things we'll be using throughout the process.
             await Initialize(true);
