@@ -1,4 +1,4 @@
-﻿using Mynt.Core.Enums;
+using Mynt.Core.Enums;
 using Mynt.Core.Interfaces;
 using Mynt.Core.Models;
 using System;
@@ -30,7 +30,7 @@ namespace Mynt.Core.TradeManagers
         /// Checks if new trades can be started.
         /// </summary>
         /// <returns></returns>
-        public async Task LookForNewTrades()
+        public async Task LookForNewTrades(string strategyString = null)
         {
             await FindBuyOpportunities();
         }

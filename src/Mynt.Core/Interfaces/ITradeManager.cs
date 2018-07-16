@@ -8,7 +8,7 @@ namespace Mynt.Core.Interfaces
         /// Checks if new trades can be started.
         /// </summary>
         /// <returns></returns>
-        Task LookForNewTrades();
+        Task LookForNewTrades(string StrategyString = null);
 
         Task UpdateExistingTrades();
     }
