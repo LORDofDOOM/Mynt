@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 using Mynt.Core.Enums;
 using Mynt.Core.Indicators;
 using Mynt.Core.Models;
@@ -9,6 +10,8 @@ namespace Mynt.Core.Strategies
 {
     public class FreqTrade : BaseStrategy
     {
+		private ILogger _logger;
+
         public override string Name => "FreqTrade";
         public override int MinimumAmountOfCandles => 40;
         public override Period IdealPeriod => Period.QuarterOfAnHour;
@@ -44,6 +47,28 @@ namespace Mynt.Core.Strategies
                     result.Add(TradeAdvice.Hold);
             }
 
+            if (_logger != null)
+            {
+                try
+                {
+                    _logger.LogInformation("{Name} " +
+                                           "rsi:{rsi} ," +
+                                           "fast.D:{f} ," +
+                                           "adx:{a} ," +
+                                           "plusDi:{p} ",
+                                           Name,
+                                           rsi[candles.Count - 1],
+                                           fast.D[candles.Count - 1],
+                                           adx[candles.Count - 1],
+                                           plusDi[candles.Count - 1]);
+
+                }
+                catch (Exception ex)
+                {
+                    
+                }
+            }
+
             return result;
         }
 
@@ -52,8 +77,9 @@ namespace Mynt.Core.Strategies
             return candles.Last();
         }
 
-        public override TradeAdvice Forecast(List<Candle> candles)
+        public override TradeAdvice Forecast(List<Candle> candles, ILogger logger)
         {
+            _logger = logger;
             return Prepare(candles).LastOrDefault();
         }
     }

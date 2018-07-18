@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 using Mynt.Core.Enums;
 using Mynt.Core.Models;
 
@@ -40,5 +41,7 @@ namespace Mynt.Core.Interfaces
         /// A trade advice based on the forecast.
         /// </returns>
         TradeAdvice Forecast(List<Candle> candles);
+
+        TradeAdvice Forecast(List<Candle> candles, ILogger logger);
     }
 }
