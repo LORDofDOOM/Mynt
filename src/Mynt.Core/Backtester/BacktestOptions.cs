@@ -14,7 +14,7 @@ namespace Mynt.Core.Backtester
         public string Coin { get; set; } = null;
         public int CandlePeriod { get; set; } = 15;
         public bool UpdateCandles { get; set; } = true;
-        public DateTime StartDate { get; set; } = new DateTime(2018,01,01);
+        public DateTime StartDate { get; set; } = new DateTime(2018,02,01);
         public DateTime EndDate { get; set; } = DateTime.MinValue;
     }
 }

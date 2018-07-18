@@ -33,5 +33,19 @@ namespace Mynt.Core.Backtester
 
             await dataStore.SaveBacktestTradeSignalsBulk(signals, backtestOptions);
         }
+
+        public async Task<List<TradeSignal>> GetSignals(BacktestOptions backtestOptions, IDataStoreBacktest dataStore, string strategy)
+        {
+            backtestOptions.EndDate = DateTime.UtcNow;
+
+            if (backtestOptions.EndDate != DateTime.MinValue)
+            {
+                backtestOptions.EndDate = backtestOptions.EndDate;
+            }
+
+            List<TradeSignal> items = await dataStore.GetBacktestSignalsByStrategy(backtestOptions, strategy);
+
+            return items;
+        }
     }
 }

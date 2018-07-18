@@ -142,5 +142,10 @@ namespace Mynt.Data.MongoDB
         {
             throw new System.NotImplementedException();
         }
+
+        public Task<List<TradeSignal>> GetBacktestSignalsByStrategy(BacktestOptions backtestOptions, string strategy)
+        {
+            throw new System.NotImplementedException();
+        }
     }
 }

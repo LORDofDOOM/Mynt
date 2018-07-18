@@ -345,17 +345,17 @@ namespace Mynt.Core.TradeManagers
 
                 // A match was made, buy that please!
                 if (signal != null && signal.TradeAdvice == TradeAdvice.Buy)
-				{
-					pairs.Add(new TradeSignal
-					{
-						MarketName = market.MarketName,
-						QuoteCurrency = market.CurrencyPair.QuoteCurrency,
-						BaseCurrency = market.CurrencyPair.BaseCurrency,
-						TradeAdvice = signal.TradeAdvice,
-						SignalCandle = signal.SignalCandle
-					});
-				}
-			}
+                {
+                    pairs.Add(new TradeSignal
+                    {
+                        MarketName = market.MarketName,
+                        QuoteCurrency = market.CurrencyPair.QuoteCurrency,
+                        BaseCurrency = market.CurrencyPair.BaseCurrency,
+                        TradeAdvice = signal.TradeAdvice,
+                        SignalCandle = signal.SignalCandle
+                    });
+                }
+            });
 
 			return pairs;
 		}

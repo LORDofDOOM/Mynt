@@ -78,11 +78,20 @@ namespace Mynt.Data.LiteDB
 
         public async Task<List<Candle>> GetBacktestCandlesBetweenTime(BacktestOptions backtestOptions)
         {
-            LiteCollection<CandleAdapter> candleCollection = DataStoreBacktest.GetInstance(GetDatabase(backtestOptions)).GetTable<CandleAdapter>("Candle_" + backtestOptions.CandlePeriod);
-            candleCollection.EnsureIndex("Timestamp");
-            List<CandleAdapter> candles = candleCollection.Find(Query.Between("Timestamp", backtestOptions.StartDate, backtestOptions.EndDate), Query.Ascending).ToList();
-            var items = Mapping.Mapper.Map<List<Candle>>(candles);
-            return items;
+            try
+            {
+                LiteCollection<CandleAdapter> candleCollection = DataStoreBacktest.GetInstance(GetDatabase(backtestOptions)).GetTable<CandleAdapter>("Candle_" + backtestOptions.CandlePeriod);
+                candleCollection.EnsureIndex("Timestamp");
+                List<CandleAdapter> candles = candleCollection.Find(Query.Between("Timestamp", backtestOptions.StartDate, backtestOptions.EndDate), Query.Ascending).ToList();
+                var items = Mapping.Mapper.Map<List<Candle>>(candles);
+                return items;
+            }
+            catch (Exception ex)
+            {
+
+                throw;
+            }
+
         }
 
         public async Task<Candle> GetBacktestFirstCandle(BacktestOptions backtestOptions)
@@ -161,10 +170,19 @@ namespace Mynt.Data.LiteDB
                 itemCollection.Delete(i => i.StrategyName == item.StrategyName);
             }
 
-           // TradeSignalAdapter lastCandle = itemCollection.Find(Query.All("Timestamp", Query.Descending), limit: 1).FirstOrDefault();
+            // TradeSignalAdapter lastCandle = itemCollection.Find(Query.All("Timestamp", Query.Descending), limit: 1).FirstOrDefault();
 
             itemCollection.EnsureIndex("Timestamp");
             itemCollection.InsertBulk(items);
+        }
+
+        public async Task<List<TradeSignal>> GetBacktestSignalsByStrategy(BacktestOptions backtestOptions, string strategy)
+        {
+            var itemCollection = DataStoreBacktest.GetInstance(GetDatabase(backtestOptions)).GetTable<TradeSignalAdapter>("Signals_" + backtestOptions.CandlePeriod);
+            itemCollection.EnsureIndex("StrategyName");
+            var items = itemCollection.Find(Query.Where("StrategyName", s => s.AsString == strategy)).ToList();
+            var result = Mapping.Mapper.Map<List<TradeSignal>>(items);
+            return result;
         }
     }
 }

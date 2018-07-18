@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using ExchangeSharp;
 using Microsoft.Extensions.Configuration;
@@ -138,7 +139,7 @@ namespace Mynt.Core.Exchanges
 
         public async Task<List<Models.MarketSummary>> GetMarketSummaries(string quoteCurrency)
         {
-            if (_exchange == Exchange.Huobi || _exchange == Exchange.Okex)
+            if (_exchange == Exchange.Huobi || _exchange == Exchange.Okex || _exchange == Exchange.Gdax)
                 return await GetExtendedMarketSummaries(quoteCurrency);
 
 			var summaries = _api.GetTickersAsync().Result;
@@ -243,9 +244,19 @@ namespace Mynt.Core.Exchanges
 
         public async Task<List<Candle>> GetTickerHistory(string market, Period period, DateTime startDate, DateTime? endDate = null)
         {
-            //Should we use globals markets ?
-            //market = _api.GlobalCurrencyToExchangeCurrency(market);
-            var ticker = await _api.GetCandlesAsync(market, period.ToMinutesEquivalent() * 60, startDate, endDate);
+            IEnumerable<MarketCandle> ticker = new List<MarketCandle>();
+         
+            while (ticker.Count() <= 0)
+            {
+                try
+                {
+                    ticker = await _api.GetCandlesAsync(market, period.ToMinutesEquivalent() * 60, startDate, endDate);
+                }
+                catch (Exception)
+                {
+                    Thread.Sleep(5000);
+                }
+            }
 
             if (ticker.Any())
                 return ticker.Select(x => new Candle
@@ -295,7 +306,20 @@ namespace Mynt.Core.Exchanges
 
             while (cendDate <= endDate)
             {
-                var ticker = await _api.GetCandlesAsync(market, period.ToMinutesEquivalent() * 60, startDate, cendDate);
+                IEnumerable<MarketCandle> ticker = new List<MarketCandle>();
+                while (ticker.Count() <=0)
+                {
+                    Console.WriteLine("GetCandlesAsync:" + market +" / "+ startDate + " / " + cendDate);
+                    try
+                    {
+                        ticker = await _api.GetCandlesAsync(market, period.ToMinutesEquivalent() * 60, startDate, cendDate);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("ERROR GetCandlesAsync:" + market + " / " + startDate + " / " + cendDate + " / "+ ex);
+                    }
+                }
+                
                 totaltickers.AddRange(ticker);
 
                 startDate = cendDate.Value;
@@ -314,7 +338,7 @@ namespace Mynt.Core.Exchanges
                     Volume = (decimal)x.ConvertedVolume
                 }).ToList();
 
-                totalCandles = await FillCandleGaps(totalCandles, period);
+               // totalCandles = await FillCandleGaps(totalCandles, period);
 
                 return totalCandles.OrderBy(x => x.Timestamp).ToList();
             }

@@ -100,7 +100,7 @@ namespace Mynt.Core.Backtester
                         }
                     }
 
-                    //await candleProvider.SaveTradeSignals(backtestOptions, dataStore, signals);
+                    await candleProvider.SaveTradeSignals(backtestOptions, dataStore, signals);
                 }
                 catch (Exception ex)
                 {
