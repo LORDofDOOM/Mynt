@@ -1,4 +1,4 @@
-﻿using Mynt.Backtester.Models;
+using Mynt.Backtester.Models;
 using Mynt.Core.Interfaces;
 using Mynt.Core.Strategies;
 using Mynt.Core.Utility;
@@ -49,6 +49,7 @@ namespace Mynt.Core.Backtester
                 foreach (var result in results)
                 {
                     JObject currentResult = new JObject();
+                    currentResult["Market"] = result.Market;
                     currentResult["Strategy"] = strategy.Name;
                     currentResult["AmountOfTrades"] = result.AmountOfTrades;
                     currentResult["AmountOfProfitableTrades"] = result.AmountOfProfitableTrades;

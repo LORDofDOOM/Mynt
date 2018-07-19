@@ -306,20 +306,23 @@ namespace Mynt.Core.Exchanges
 
             while (cendDate <= endDate)
             {
+                int k = 0;
+
                 IEnumerable<MarketCandle> ticker = new List<MarketCandle>();
-                while (ticker.Count() <=0)
+                while (ticker.Count() <= 0 && k < 10)
                 {
-                    Console.WriteLine("GetCandlesAsync:" + market +" / "+ startDate + " / " + cendDate);
+                    k++;
+                    Console.WriteLine("GetCandlesAsync:" + market + " / " + startDate + " / " + cendDate);
                     try
                     {
                         ticker = await _api.GetCandlesAsync(market, period.ToMinutesEquivalent() * 60, startDate, cendDate);
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine("ERROR GetCandlesAsync:" + market + " / " + startDate + " / " + cendDate + " / "+ ex);
+                        Console.WriteLine("ERROR GetCandlesAsync:" + market + " / " + startDate + " / " + cendDate + " / " + ex);
                     }
                 }
-                
+
                 totaltickers.AddRange(ticker);
 
                 startDate = cendDate.Value;
