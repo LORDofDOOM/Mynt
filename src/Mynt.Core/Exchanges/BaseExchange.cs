@@ -296,8 +296,8 @@ namespace Mynt.Core.Exchanges
  
             var hh = 840;
 
-            //GDAX??
-            if (market.Contains("EUR"))
+            //gdax needs a small granularity
+            if (_exchange == Exchange.Gdax)
                 hh = 24;
 
             var cendDate = endDate;
