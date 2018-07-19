@@ -320,6 +320,7 @@ namespace Mynt.Core.Exchanges
                     catch (Exception ex)
                     {
                         Console.WriteLine("ERROR GetCandlesAsync:" + market + " / " + startDate + " / " + cendDate + " / " + ex);
+                        Thread.Sleep(3000);
                     }
                 }
 

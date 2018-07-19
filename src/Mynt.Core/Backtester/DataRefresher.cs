@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Mynt.Core.Exchanges;
 using Mynt.Core.Extensions;
@@ -28,8 +29,14 @@ namespace Mynt.Core.Backtester
         {
             BaseExchange baseExchangeApi = new BaseExchangeInstance().BaseExchange(backtestOptions.Exchange.ToString());
 
-            foreach (string globalSymbol in backtestOptions.Coins)
+            var cts = new CancellationTokenSource();
+            var parallelOptions = new ParallelOptions();
+            parallelOptions.CancellationToken = cts.Token;
+            parallelOptions.MaxDegreeOfParallelism = Environment.ProcessorCount;
+            Parallel.ForEach(backtestOptions.Coins, parallelOptions, async globalSymbol =>
             {
+                //foreach (string globalSymbol in backtestOptions.Coins)
+                //{
                 string exchangeSymbol = await baseExchangeApi.GlobalSymbolToExchangeSymbol(globalSymbol);
                 backtestOptions.Coin = globalSymbol;
                 string currentlyRunningString = backtestOptions.Exchange + "_" + globalSymbol + "_" + backtestOptions.CandlePeriod;
@@ -51,7 +58,7 @@ namespace Mynt.Core.Backtester
                 if (!backtestOptions.UpdateCandles)
                 {
                     dataStore.DeleteBacktestDatabase(backtestOptions).RunSynchronously();
-					callback($"\tRecreate database: {backtestOptions.Exchange.ToString()} with Period {backtestOptions.CandlePeriod.ToString()}min for {globalSymbol} {startDate.ToUniversalTime()} to {endDate.RoundDown(TimeSpan.FromMinutes(backtestOptions.CandlePeriod))} UTC");
+                    callback($"\tRecreate database: {backtestOptions.Exchange.ToString()} with Period {backtestOptions.CandlePeriod.ToString()}min for {globalSymbol} {startDate.ToUniversalTime()} to {endDate.RoundDown(TimeSpan.FromMinutes(backtestOptions.CandlePeriod))} UTC");
                 }
                 else
                 {
@@ -61,9 +68,10 @@ namespace Mynt.Core.Backtester
                     {
                         startDate = databaseLastCandle.Timestamp.ToUniversalTime();
                         callback($"\tUpdate database: {backtestOptions.Exchange.ToString()} with Period {backtestOptions.CandlePeriod.ToString()}min for {globalSymbol} {startDate.ToUniversalTime()} to {endDate.RoundDown(TimeSpan.FromMinutes(backtestOptions.CandlePeriod))} UTC");
-                    } else
+                    }
+                    else
                     {
-						callback($"\tCreate database: {backtestOptions.Exchange.ToString()} with Period {backtestOptions.CandlePeriod.ToString()}min for {globalSymbol} {startDate.ToUniversalTime()} to {endDate.RoundDown(TimeSpan.FromMinutes(backtestOptions.CandlePeriod))} UTC");
+                        callback($"\tCreate database: {backtestOptions.Exchange.ToString()} with Period {backtestOptions.CandlePeriod.ToString()}min for {globalSymbol} {startDate.ToUniversalTime()} to {endDate.RoundDown(TimeSpan.FromMinutes(backtestOptions.CandlePeriod))} UTC");
                         databaseExists = false;
                     }
                 }
@@ -97,7 +105,9 @@ namespace Mynt.Core.Backtester
                         {
                             await dataStore.SaveBacktestCandlesBulk(candles, backtestOptions);
                             databaseExists = true;
-                        } else {
+                        }
+                        else
+                        {
                             await dataStore.SaveBacktestCandlesBulkCheckExisting(candles, backtestOptions);
                         }
 
@@ -113,7 +123,7 @@ namespace Mynt.Core.Backtester
                 {
                     CurrentlyRunningUpdates.Remove(currentlyRunningString);
                 }
-            }
+            });
         }
 
         public static async Task<JArray> GetCacheAge(BacktestOptions backtestOptions, IDataStoreBacktest dataStore)
