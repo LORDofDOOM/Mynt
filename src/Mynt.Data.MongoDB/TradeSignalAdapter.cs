@@ -1,18 +1,17 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using LiteDB;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
 using Mynt.Core.Enums;
 using Mynt.Core.Interfaces;
 using Mynt.Core.Models;
 
-namespace Mynt.Data.LiteDB
+namespace Mynt.Data.MongoDB
 {
     public class TradeSignalAdapter
     {
-        [BsonId]
         public Guid Id { get; set; }
-
         public Guid ParentId { get; set; }
 
         public string MarketName { get; set; }

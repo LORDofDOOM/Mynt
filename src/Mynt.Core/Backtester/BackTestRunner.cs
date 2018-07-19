@@ -39,7 +39,7 @@ namespace Mynt.Core.Backtester
 
                             signals.Add(new TradeSignal
                             {
-                                id = id,
+                                Id = id,
                                 MarketName = globalSymbol,
                                 Price = candles[i].Close,
                                 TradeAdvice = TradeAdvice.Buy,
@@ -79,8 +79,8 @@ namespace Mynt.Core.Backtester
 
                                     signals.Add(new TradeSignal
                                     {
-                                        id = Guid.NewGuid(),
-                                        parentId = id,
+                                        Id = Guid.NewGuid(),
+                                        ParentId = id,
                                         MarketName = globalSymbol,
                                         Price = candles[j].Close,
                                         TradeAdvice = TradeAdvice.Sell,

@@ -10,9 +10,9 @@ namespace Mynt.Core.Models
 {
     public class TradeSignal
     {
-        public Guid id { get; set; }
+        public Guid Id { get; set; }
 
-        public Guid parentId { get; set; }
+        public Guid ParentId { get; set; }
 
         public string MarketName { get; set; }
         public string QuoteCurrency { get; set; }

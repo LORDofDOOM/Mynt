@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -34,7 +35,7 @@ namespace Mynt.Data.LiteDB
             return backtestOptions.DataFolder.Replace("\\", "/") + "/" + backtestOptions.Exchange + "_" + backtestOptions.Coin + ".db";
         }
 
-        private static readonly Dictionary<string, DataStoreBacktest> DatabaseInstances = new Dictionary<string, DataStoreBacktest>();
+        private static readonly ConcurrentDictionary<string, DataStoreBacktest> DatabaseInstances = new ConcurrentDictionary<string, DataStoreBacktest>();
 
         private class DataStoreBacktest
         {
