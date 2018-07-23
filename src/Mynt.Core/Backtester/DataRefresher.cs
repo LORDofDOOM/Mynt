@@ -29,14 +29,14 @@ namespace Mynt.Core.Backtester
         {
             BaseExchange baseExchangeApi = new BaseExchangeInstance().BaseExchange(backtestOptions.Exchange.ToString());
 
-            var cts = new CancellationTokenSource();
-            var parallelOptions = new ParallelOptions();
-            parallelOptions.CancellationToken = cts.Token;
-            parallelOptions.MaxDegreeOfParallelism = Environment.ProcessorCount;
-            Parallel.ForEach(backtestOptions.Coins, parallelOptions, async globalSymbol =>
-            {
-                //foreach (string globalSymbol in backtestOptions.Coins)
-                //{
+            //var cts = new CancellationTokenSource();
+            //var parallelOptions = new ParallelOptions();
+            //parallelOptions.CancellationToken = cts.Token;
+            //parallelOptions.MaxDegreeOfParallelism = Environment.ProcessorCount;
+            //Parallel.ForEach(backtestOptions.Coins, parallelOptions, async globalSymbol =>
+            //{
+                foreach (string globalSymbol in backtestOptions.Coins)
+                {
                 string exchangeSymbol = await baseExchangeApi.GlobalSymbolToExchangeSymbol(globalSymbol);
                 backtestOptions.Coin = globalSymbol;
                 string currentlyRunningString = backtestOptions.Exchange + "_" + globalSymbol + "_" + backtestOptions.CandlePeriod;
@@ -123,7 +123,7 @@ namespace Mynt.Core.Backtester
                 {
                     CurrentlyRunningUpdates.Remove(currentlyRunningString);
                 }
-            });
+            }
         }
 
         public static async Task<JArray> GetCacheAge(BacktestOptions backtestOptions, IDataStoreBacktest dataStore)

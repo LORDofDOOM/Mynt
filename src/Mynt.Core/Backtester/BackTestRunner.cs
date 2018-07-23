@@ -118,11 +118,11 @@ namespace Mynt.Core.Backtester
         {
             var currentProfit = (currentRateBid - tradeOpenRate) / tradeOpenRate;
 
-            if (currentProfit < -0.08) //stopLossPercentage
+            if (currentProfit < -0.07) //stopLossPercentage
                 return SellType.StopLoss;
 
-            if (currentProfit >= 0.08)
-                return SellType.Immediate;
+            //if (currentProfit >= 0.08)
+            //    return SellType.Immediate;
 
             //if (currentProfit > 0.04)
             //	return SellType.Timed;
