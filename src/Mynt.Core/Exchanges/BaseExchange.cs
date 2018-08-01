@@ -90,15 +90,12 @@ namespace Mynt.Core.Exchanges
                 case Exchange.Kucoin:
                     _api = new ExchangeSharp.ExchangeKucoinAPI();
                     break;
+                case Exchange.BacktestGdax:
+                    _api = new ExchangeBacktestGdaxAPI();
+                    break;
             }
 
             _api.LoadAPIKeysUnsecure(options.ApiKey, options.ApiSecret, options.PassPhrase);
-        }
-
-        public BaseExchange(ExchangeOptions options, ExchangeAPI exchangeAPI)
-        {
-            _exchange = options.Exchange;
-            _api = exchangeAPI;
         }
 
         #region default implementations
@@ -121,13 +118,7 @@ namespace Mynt.Core.Exchanges
 
         public async Task CancelOrder(string orderId, string market)
         {
-            var fixedOrderId = orderId;
-
-            // HACK: Binance cancel order request requires the market as well...
-            if (_exchange == Exchange.Binance)
-                fixedOrderId = market + fixedOrderId;
-
-            await _api.CancelOrderAsync(fixedOrderId);
+            await _api.CancelOrderAsync(orderId, market);
         }
 
         public async Task<AccountBalance> GetBalance(string currency)
@@ -142,7 +133,7 @@ namespace Mynt.Core.Exchanges
 
         public async Task<List<Models.MarketSummary>> GetMarketSummaries(string quoteCurrency)
         {
-            if (_exchange == Exchange.Huobi || _exchange == Exchange.Okex || _exchange == Exchange.Gdax || _exchange == Exchange.GdaxSimulation)
+            if (_exchange == Exchange.Huobi || _exchange == Exchange.Okex || _exchange == Exchange.Gdax)
                 return await GetExtendedMarketSummaries(quoteCurrency);
 
             var summaries = _api.GetTickersAsync().Result;
@@ -196,7 +187,17 @@ namespace Mynt.Core.Exchanges
 
         public async Task<Order> GetOrder(string orderId, string market)
         {
-            var order = await _api.GetOrderDetailsAsync(orderId);
+            ExchangeOrderResult order = new ExchangeOrderResult();
+
+            try
+            {
+                order = await _api.GetOrderDetailsAsync(orderId, market);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(orderId.ToString());
+                Console.WriteLine(ex.ToString());
+            }
 
             if (order != null)
             {
@@ -249,15 +250,13 @@ namespace Mynt.Core.Exchanges
         {
             IEnumerable<MarketCandle> ticker = new List<MarketCandle>();
 
-            int k = 1;
-
-            while (ticker.Count() <= 0 && k < 20)
+            while (ticker.Count() <= 0)
             {
                 try
                 {
                     ticker = await _api.GetCandlesAsync(market, period.ToMinutesEquivalent() * 60, startDate, endDate);
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     Thread.Sleep(5000);
                 }
@@ -420,10 +419,18 @@ namespace Mynt.Core.Exchanges
                 Price = rate,
                 Symbol = market
             };
+            try
+            {
+                var order = await _api.PlaceOrderAsync(request);
+                return order.OrderId;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+            }
 
-            var order = await _api.PlaceOrderAsync(request);
+            return null;
 
-            return order.OrderId;
         }
 
         public async Task<ExchangeMarket> GetSymbolInfo(string symbol)
@@ -466,10 +473,6 @@ namespace Mynt.Core.Exchanges
             foreach (var item in filteredList)
             {
                 var ticker = await _api.GetTickerAsync(item);
-
-                if (ticker == null)
-                    continue;
-
                 var symbol = symbols.FirstOrDefault(x => x.MarketName == item);
 
                 if (symbol != null)

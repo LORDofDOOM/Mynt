@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,6 +15,7 @@ namespace Mynt.Core.Enums
         Timed = 4,
         Immediate = 5,
         Strategy = 6,
-        Cancelled = 7
+        Cancelled = 7,
+        Manually = 8
     }
 }
