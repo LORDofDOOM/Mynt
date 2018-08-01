@@ -1,4 +1,5 @@
-﻿using Mynt.Core.Enums;
+using Mynt.Core.Enums;
+using System;
 
 namespace Mynt.Core.Exchanges
 {
@@ -8,5 +9,9 @@ namespace Mynt.Core.Exchanges
         public string ApiKey { get; set; }
         public string ApiSecret { get; set; }
         public string PassPhrase { get; set; }
+
+        public DateTime SimulationCurrentDate { get; set; }
+        public bool IsSimulation { get; set; }
+        public string SimulationCandleSize { get; set; } = "15";
     }
 }

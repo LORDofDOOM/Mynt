@@ -144,7 +144,7 @@ namespace Mynt.Data.MongoDB
 
         public async Task DeleteBacktestDatabase(BacktestOptions backtestOptions)
         {
-            var dbList = client.GetDatabase(mongoDbOptions.MongoDatabaseName);
+            var dbList = client.GetDatabase(mongoDbBaseName + backtestOptions.CandlePeriod);
             dbList.DropCollection(backtestOptions.Exchange + "_" + backtestOptions.Coin);
         }
 

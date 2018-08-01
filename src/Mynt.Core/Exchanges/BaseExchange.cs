@@ -90,12 +90,15 @@ namespace Mynt.Core.Exchanges
                 case Exchange.Kucoin:
                     _api = new ExchangeSharp.ExchangeKucoinAPI();
                     break;
-                case Exchange.BacktestGdax:
-                    _api = new ExchangeBacktestGdaxAPI();
-                    break;
             }
 
             _api.LoadAPIKeysUnsecure(options.ApiKey, options.ApiSecret, options.PassPhrase);
+        }
+
+        public BaseExchange(ExchangeOptions options, ExchangeAPI exchangeAPI)
+        {
+            _exchange = options.Exchange;
+            _api = exchangeAPI;
         }
 
         #region default implementations
@@ -139,10 +142,10 @@ namespace Mynt.Core.Exchanges
 
         public async Task<List<Models.MarketSummary>> GetMarketSummaries(string quoteCurrency)
         {
-            if (_exchange == Exchange.Huobi || _exchange == Exchange.Okex || _exchange == Exchange.Gdax)
+            if (_exchange == Exchange.Huobi || _exchange == Exchange.Okex || _exchange == Exchange.Gdax || _exchange == Exchange.GdaxSimulation)
                 return await GetExtendedMarketSummaries(quoteCurrency);
 
-			var summaries = _api.GetTickersAsync().Result;
+            var summaries = _api.GetTickersAsync().Result;
 
             if (summaries.Any())
             {
@@ -245,14 +248,16 @@ namespace Mynt.Core.Exchanges
         public async Task<List<Candle>> GetTickerHistory(string market, Period period, DateTime startDate, DateTime? endDate = null)
         {
             IEnumerable<MarketCandle> ticker = new List<MarketCandle>();
-         
-            while (ticker.Count() <= 0)
+
+            int k = 1;
+
+            while (ticker.Count() <= 0 && k < 20)
             {
                 try
                 {
                     ticker = await _api.GetCandlesAsync(market, period.ToMinutesEquivalent() * 60, startDate, endDate);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
                     Thread.Sleep(5000);
                 }
@@ -293,7 +298,7 @@ namespace Mynt.Core.Exchanges
         public async Task<List<Candle>> GetChunkTickerHistory(string market, Period period, DateTime startDate, DateTime? endDate = null)
         {
             var totaltickers = new List<MarketCandle>();
- 
+
             var hh = 840;
 
             //gdax needs a small granularity
@@ -342,7 +347,7 @@ namespace Mynt.Core.Exchanges
                     Volume = (decimal)x.ConvertedVolume
                 }).ToList();
 
-               // totalCandles = await FillCandleGaps(totalCandles, period);
+                // totalCandles = await FillCandleGaps(totalCandles, period);
 
                 return totalCandles.OrderBy(x => x.Timestamp).ToList();
             }
@@ -432,13 +437,13 @@ namespace Mynt.Core.Exchanges
             return _exchangeInfo.FirstOrDefault(x => x.MarketName == symbol);
         }
 
-	    public async Task<string> GlobalSymbolToExchangeSymbol(string symbol)
-	    {
+        public async Task<string> GlobalSymbolToExchangeSymbol(string symbol)
+        {
             return _api.GlobalSymbolToExchangeSymbol(symbol);
         }
 
-	    public async Task<string> ExchangeCurrencyToGlobalCurrency(string symbol)
-	    {
+        public async Task<string> ExchangeCurrencyToGlobalCurrency(string symbol)
+        {
             return _api.ExchangeSymbolToGlobalSymbol(symbol);
         }
 
@@ -461,6 +466,10 @@ namespace Mynt.Core.Exchanges
             foreach (var item in filteredList)
             {
                 var ticker = await _api.GetTickerAsync(item);
+
+                if (ticker == null)
+                    continue;
+
                 var symbol = symbols.FirstOrDefault(x => x.MarketName == item);
 
                 if (symbol != null)

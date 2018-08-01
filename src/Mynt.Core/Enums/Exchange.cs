@@ -13,6 +13,7 @@ namespace Mynt.Core.Enums
 		Okex = 7,
 		Cryptopia = 8,
         Kucoin = 9,
-        BacktestGdax = 10
+        GdaxSimulation = 10,
+        BinanceSimulation = 11
     }
 }

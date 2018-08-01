@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using Mynt.Core.Enums;
 using Mynt.Core.Interfaces;
@@ -8,7 +8,7 @@ namespace Mynt.Core.Strategies
 {
     public class SimpleBearBull : BaseStrategy
     {
-        public override string Name => "The Bull & The Bear";
+        public override string Name => "The Bull and The Bear";
         public override int MinimumAmountOfCandles => 5;
         public override Period IdealPeriod => Period.Hour;
 

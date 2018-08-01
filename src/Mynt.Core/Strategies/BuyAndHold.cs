@@ -9,7 +9,7 @@ namespace Mynt.Core.Strategies
 {
     public class BuyAndHold : BaseStrategy
     {
-        public override string Name => "Buy & Hold";
+        public override string Name => "Buy and Hold";
         public override int MinimumAmountOfCandles => 20;
         public override Period IdealPeriod => Period.QuarterOfAnHour;
 
