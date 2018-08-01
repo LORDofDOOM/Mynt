@@ -113,13 +113,7 @@ namespace Mynt.Core.Exchanges
 
 		public async Task CancelOrder(string orderId, string market)
 		{
-			var fixedOrderId = orderId;
-
-			// HACK: Binance cancel order request requires the market as well...
-			if (_exchange == Exchange.Binance)
-				fixedOrderId = market + fixedOrderId;
-
-			await _api.CancelOrderAsync(fixedOrderId);
+			await _api.CancelOrderAsync(orderId, market);
 		}
 
 		public async Task<AccountBalance> GetBalance(string currency)
@@ -188,7 +182,17 @@ namespace Mynt.Core.Exchanges
 
 		public async Task<Order> GetOrder(string orderId, string market)
 		{
-			var order = await _api.GetOrderDetailsAsync(orderId);
+		    ExchangeOrderResult order = new ExchangeOrderResult();
+
+            try
+		    {
+		        order = await _api.GetOrderDetailsAsync(orderId, market);
+		    }
+		    catch (Exception ex)
+		    {
+                Console.WriteLine(orderId.ToString());
+		        Console.WriteLine(ex.ToString());
+		    }
 
 			if (order != null)
 			{
@@ -285,10 +289,18 @@ namespace Mynt.Core.Exchanges
 				Price = rate,
 				Symbol = market
 			};
+		    try
+		    {
+		        var order = await _api.PlaceOrderAsync(request);
+		        return order.OrderId;
+            }
+		    catch (Exception ex)
+		    {
+                Console.WriteLine(ex.ToString());
+		    }
 
-			var order = await _api.PlaceOrderAsync(request);
+		    return null;
 
-			return order.OrderId;
 		}
 
 		public async Task<ExchangeMarket> GetSymbolInfo(string symbol)

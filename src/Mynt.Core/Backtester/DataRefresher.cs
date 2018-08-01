@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -30,7 +30,7 @@ namespace Mynt.Core.Backtester
 
             foreach (string globalSymbol in backtestOptions.Coins)
             {
-                string exchangeSymbol = baseExchangeApi.GlobalSymbolToExchangeSymbol(globalSymbol);
+                string exchangeSymbol = await baseExchangeApi.GlobalSymbolToExchangeSymbol(globalSymbol);
                 backtestOptions.Coin = globalSymbol;
                 string currentlyRunningString = backtestOptions.Exchange + "_" + globalSymbol + "_" + backtestOptions.CandlePeriod;
                 lock (CurrentlyRunningUpdates)
