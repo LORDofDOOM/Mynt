@@ -89,13 +89,16 @@ namespace Mynt.Core.Exchanges
                     break;
                 case Exchange.Kucoin:
                     _api = new ExchangeSharp.ExchangeKucoinAPI();
-                    break;
-                case Exchange.BacktestGdax:
-                    _api = new ExchangeBacktestGdaxAPI();
-                    break;
+                    break;               
             }
 
             _api.LoadAPIKeysUnsecure(options.ApiKey, options.ApiSecret, options.PassPhrase);
+        }
+
+        public BaseExchange(ExchangeOptions options, ExchangeAPI exchangeAPI)
+        {
+            _exchange = options.Exchange;
+            _api = exchangeAPI;
         }
 
         #region default implementations
@@ -250,7 +253,9 @@ namespace Mynt.Core.Exchanges
         {
             IEnumerable<MarketCandle> ticker = new List<MarketCandle>();
 
-            while (ticker.Count() <= 0)
+            int k = 1;
+
+            while (ticker.Count() <= 0 && k < 20)
             {
                 try
                 {
@@ -473,6 +478,10 @@ namespace Mynt.Core.Exchanges
             foreach (var item in filteredList)
             {
                 var ticker = await _api.GetTickerAsync(item);
+
+                if (ticker == null)
+                    continue;
+
                 var symbol = symbols.FirstOrDefault(x => x.MarketName == item);
 
                 if (symbol != null)
