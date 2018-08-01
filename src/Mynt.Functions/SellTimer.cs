@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Azure.WebJobs;
@@ -8,6 +8,7 @@ using Mynt.Core.Configuration;
 // using Microsoft.Extensions.Configuration;
 using Mynt.Core.Enums;
 using Mynt.Core.Exchanges;
+using Mynt.Core.Interfaces;
 using Mynt.Core.Notifications;
 using Mynt.Core.Strategies;
 using Mynt.Core.TradeManagers;
@@ -50,7 +51,7 @@ namespace Mynt.Functions
                     api: new BaseExchange(exchangeOptions),
                     dataStore: new AzureTableStorageDataStore(azureTableStorageOptions),
                     logger: logger,
-                    notificationManager: new TelegramNotificationManager(telegramNotificationOptions),
+                    notificationManager: new List<INotificationManager>{new TelegramNotificationManager(telegramNotificationOptions)},
                     settings: tradeOptions,
                     strategy: ApplicationHelper.TryCreateTradingStrategy(tradeOptions.DefaultStrategy) ?? new TheScalper());
 
