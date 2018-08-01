@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 namespace Mynt.Core.Enums
 {
     public enum Exchange
@@ -12,6 +12,7 @@ namespace Mynt.Core.Enums
 		Gdax = 6,
 		Okex = 7,
 		Cryptopia = 8,
-        Kucoin = 9
-	}
+        Kucoin = 9,
+        BacktestGdax = 10
+    }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -90,5 +90,9 @@ namespace Mynt.Data.SqlServer
             return items;
         }
 
+        public Task<List<Trade>> GetClosedTradesAsync()
+        {
+            throw new NotImplementedException();
+        }
     }
 }

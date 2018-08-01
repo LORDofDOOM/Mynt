@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.WindowsAzure.Storage;
@@ -154,5 +154,9 @@ namespace Mynt.Data.AzureTableStorage
                 await _orderTable.ExecuteBatchAsync(tradeBatch);
         }
 
+        public Task<List<Trade>> GetClosedTradesAsync()
+        {
+            throw new NotImplementedException();
+        }
     }
 }

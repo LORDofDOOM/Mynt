@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Mynt.Core.Interfaces;
@@ -93,6 +93,11 @@ namespace Mynt.UnitTests.TradeManagers
         {
             foreach (var item in trades)
                 await SaveTradeAsync(item);
+        }
+
+        public Task<List<Trade>> GetClosedTradesAsync()
+        {
+            throw new System.NotImplementedException();
         }
     }
 }

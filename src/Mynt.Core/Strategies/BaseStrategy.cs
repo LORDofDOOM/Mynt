@@ -1,4 +1,5 @@
-﻿using Mynt.Core.Enums;
+using Microsoft.Extensions.Logging;
+using Mynt.Core.Enums;
 using Mynt.Core.Interfaces;
 using Mynt.Core.Models;
 using System;
@@ -66,7 +67,7 @@ namespace Mynt.Core.Strategies
                 case Period.FiveMinutes:
                     return current.AddMinutes(-(5 * MinimumAmountOfCandles));
                 case Period.QuarterOfAnHour:
-                    return current.AddMinutes(-(15 * MinimumAmountOfCandles));
+                    return current.AddMinutes(-(30 * MinimumAmountOfCandles));
                 case Period.HalfAnHour:
                     return current.AddMinutes(-(30 * MinimumAmountOfCandles));
                 case Period.Hour:
@@ -86,7 +87,15 @@ namespace Mynt.Core.Strategies
 
         public abstract List<TradeAdvice> Prepare(List<Candle> candles);
 
-        public abstract TradeAdvice Forecast(List<Candle> candles);
+        public virtual TradeAdvice Forecast(List<Candle> candles)
+        {
+            return Forecast(candles, null);
+        }
+
+        public virtual TradeAdvice Forecast(List<Candle> candles, ILogger logger)
+        {
+            return Forecast(candles);
+        }
 
     }
 }

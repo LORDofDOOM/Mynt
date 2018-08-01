@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using AutoMapper;
@@ -30,16 +30,16 @@ namespace Mynt.Data.MongoDB
         public MappingProfile()
         {
             CreateMap<TradeAdapter, Trade>();
-
             CreateMap<Trade, TradeAdapter>();
 
             CreateMap<TraderAdapter, Trader>();
-
             CreateMap<Trader, TraderAdapter>();
 
             CreateMap<CandleAdapter, Candle>();
-
             CreateMap<Candle, CandleAdapter>();
+
+            CreateMap<TradeSignal, TradeSignalAdapter>();
+            CreateMap<TradeSignalAdapter, TradeSignal>();
         }
     }
 }

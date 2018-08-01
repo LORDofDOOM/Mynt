@@ -8,11 +8,11 @@ using Mynt.Core.Models;
 
 namespace Mynt.Core.Strategies
 {
-    public class FreqTrade : BaseStrategy
+    public class FreqTradeEvo : BaseStrategy
     {
-		private ILogger _logger;
+        private ILogger _logger;
 
-        public override string Name => "FreqTrade";
+        public override string Name => "FreqTrade Evo";
         public override int MinimumAmountOfCandles => 40;
         public override Period IdealPeriod => Period.QuarterOfAnHour;
 
@@ -20,26 +20,28 @@ namespace Mynt.Core.Strategies
         {
             var result = new List<TradeAdvice>();
 
-            var rsi = candles.Rsi(14);
+            var rsi = candles.Rsi(5);
+            var fast = candles.StochFast();
+            var bb = candles.Bbands(20);
+
             var adx = candles.Adx(14);
             var plusDi = candles.PlusDI(14);
             var minusDi = candles.MinusDI(14);
-            var fast = candles.StochFast();
 
             for (int i = 0; i < candles.Count; i++)
             {
                 if (
-                    rsi[i] < 25
-                    && fast.D[i] < 30
-                    && adx[i] > 30
-                    && plusDi[i] > 5
+                    rsi[i] < 22
+                    && fast.K[i] < 25
+                    // && bb.LowerBand[i] > candles[i].Close
+                    && (fast.D[i - 1] > fast.K[i - 1])
+                    && ((fast.D[i] - fast.K[i]) < 0.3m)
                     )
                     result.Add(TradeAdvice.Buy);
 
                 else if (
-                    adx[i] > 0
-                    && minusDi[i] > 0
-                    && fast.D[i] > 65
+                     rsi[i] > 70
+                     && fast.K[i] > 50
                     )
                     result.Add(TradeAdvice.Sell);
 
@@ -65,7 +67,7 @@ namespace Mynt.Core.Strategies
                 }
                 catch (Exception ex)
                 {
-                    
+
                 }
             }
 

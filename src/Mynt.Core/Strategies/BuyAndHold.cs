@@ -1,4 +1,4 @@
-﻿using Mynt.Core.Enums;
+using Mynt.Core.Enums;
 using Mynt.Core.Models;
 using System;
 using System.Collections.Generic;
@@ -11,7 +11,7 @@ namespace Mynt.Core.Strategies
     {
         public override string Name => "Buy & Hold";
         public override int MinimumAmountOfCandles => 20;
-        public override Period IdealPeriod => Period.Hour;
+        public override Period IdealPeriod => Period.QuarterOfAnHour;
 
         public override List<TradeAdvice> Prepare(List<Candle> candles)
         {
